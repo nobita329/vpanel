@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in">
+    <div>
+        <h1 class="text-2xl font-bold text-white">{{ vm.name }}</h1>
+        <p class="text-gray-500 mt-1">{{ vm.os_type }}/{{ vm.os_version }} · SSH Terminal</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <span class="badge {{ 'badge-success' if vm.status=='running' else 'badge-danger' }}">
+            <span class="status-dot {{ vm.status }}"></span>{{ vm.status }}
+        </span>
+        <a href="/vms/{{ vm.uuid }}" class="text-blue-400 hover:text-blue-300 text-sm">← Back</a>
+    </div>
+</div>
+
+{% if vm.status == 'running' %}
+<div class="card rounded-xl overflow-hidden animate-in" style="background:#080b14;">
+    <div class="bg-black/60 border-b border-white/5 px-4 py-2 flex items-center gap-3">
+        <span id="termStatus" class="text-xs text-yellow-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>Connecting...
+        </span>
+        <div class="w-px h-4 bg-white/10"></div>
+        <span class="text-xs text-gray-600">ssh {{ vm.username }}@localhost -p {{ vm.ssh_port }}</span>
+        <button onclick="document.getElementById('terminalContainer').requestFullscreen()" class="ml-auto px-2 py-1 rounded text-[11px] bg-white/5 text-gray-500 hover:text-white hover:bg-white/10 transition">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+    <div id="terminalContainer" style="height:550px;background:#000;position:relative;">
+        <div id="termOverlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:10;flex-direction:column;gap:12px;">
+            <div class="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div class="text-gray-500 text-sm">Connecting to SSH...</div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card rounded-xl p-8 animate-in text-center">
+    <div class="text-5xl mb-4 text-gray-700"><i class="fas fa-terminal"></i></div>
+    <h3 class="text-lg font-bold text-white mb-2">VM is not running</h3>
+    <p class="text-gray-500 mb-4">Start the VM to access the SSH terminal.</p>
+    <button onclick="if(!confirm('Start this VM?'))return;const btn=this;btn.disabled=true;btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Starting...';fetch('/api/vm/{{ vm.uuid }}/start',{method:'POST'}).then(r=>r.json()).then(d=>{showToast(d.message||'Started',d.success?'success':'error');if(d.success)setTimeout(()=>location.reload(),2000);else{btn.disabled=false;btn.innerHTML='<i class=\'fas fa-play\'></i>Start VM';}})" class="btn-success px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2">
+        <i class="fas fa-play"></i>Start VM
+    </button>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5/lib/xterm.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5/css/xterm.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@1/lib/addon-fit.js"></script>
+
+<script>
+(function() {
+    const container = document.getElementById('terminalContainer');
+    const overlay = document.getElementById('termOverlay');
+    const statusEl = document.getElementById('termStatus');
+
+    function setStatus(text, type) {
+        if (!statusEl) return;
+        const dot = statusEl.querySelector('span');
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full ' + (type === 'ok' ? 'bg-green-400' : type === 'err' ? 'bg-red-400' : 'bg-yellow-400 animate-pulse') + '"></span>' + text;
+    }
+
+    {% if vm.status == 'running' %}
+    const term = new Terminal({
+        cursorBlink: true,
+        cursorStyle: 'block',
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: { background: '#000000', foreground: '#e2e8f0', cursor: '#60a5fa', selection: 'rgba(59,130,246,0.3)' },
+        allowTransparency: true,
+        bellStyle: 'none',
+        scrollback: 5000
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(container);
+    fitAddon.fit();
+
+    if (overlay) overlay.style.display = 'none';
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + window.location.host + '/ssh/{{ vm.uuid }}';
+    let socket = null;
+    let connected = false;
+
+    function connect() {
+        try {
+            if (socket) { try { socket.close(); } catch(e) {} }
+            socket = new WebSocket(wsUrl);
+            socket.binaryType = 'arraybuffer';
+
+            socket.onopen = function() {
+                connected = true;
+                setStatus('Connected', 'ok');
+                term.focus();
+            };
+
+            socket.onmessage = function(event) {
+                if (event.data instanceof ArrayBuffer) {
+                    term.write(new Uint8Array(event.data));
+                } else if (typeof event.data === 'string') {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type === 'status') {
+                            setStatus(msg.message, msg.level || 'info');
+                        }
+                    } catch(e) {
+                        term.write(event.data);
+                    }
+                }
+            };
+
+            socket.onclose = function() {
+                connected = false;
+                setStatus('Disconnected', 'err');
+            };
+
+            socket.onerror = function() {
+                setStatus('Connection error', 'err');
+            };
+        } catch(e) {
+            setStatus('Failed: ' + e.message, 'err');
+        }
+    }
+
+    term.onData(function(data) {
+        if (socket && connected && socket.readyState === WebSocket.OPEN) {
+            socket.send(data);
+        }
+    });
+
+    term.onResize(function(size) {
+        if (socket && connected && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({resize: [size.cols, size.rows]}));
+        }
+    });
+
+    window.addEventListener('resize', function() {
+        try {
+            fitAddon.fit();
+        } catch(e) {}
+    });
+
+    const resizeObserver = new ResizeObserver(function() {
+        try {
+            fitAddon.fit();
+        } catch(e) {}
+    });
+    resizeObserver.observe(container);
+
+    connect();
+    {% endif %}
+})();
+</script>
+{% endblock %}

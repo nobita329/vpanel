@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between animate-in">
+    <div><h1 class="text-2xl font-bold text-white">Support Tickets</h1><p class="text-gray-500 mt-1">Customer support request management</p></div>
+    <a href="/tickets/create" class="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>New Ticket</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-white">{{ stats.open }}</p><p class="text-gray-500 text-sm mt-1">Open</p></div>
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-blue-400">{{ stats.in_progress }}</p><p class="text-gray-500 text-sm mt-1">In Progress</p></div>
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-green-400">{{ stats.closed }}</p><p class="text-gray-500 text-sm mt-1">Closed</p></div>
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-purple-400">{{ stats.total }}</p><p class="text-gray-500 text-sm mt-1">Total</p></div>
+</div>
+<div class="card rounded-xl overflow-hidden animate-in">
+    <div class="overflow-x-auto">
+    <table class="w-full">
+        <thead class="table-header">
+            <tr>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Subject</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800/30">
+            {% for t in tickets %}
+            <tr class="table-row">
+                <td class="px-6 py-4 text-sm font-medium text-white">{{ t.subject[:50] }}{% if t.subject|length > 50 %}...{% endif %}</td>
+                <td class="px-6 py-4 text-sm text-gray-400">{{ t.username or '' }}</td>
+                <td class="px-6 py-4"><span class="badge {{ 'badge-danger' if t.priority=='high' else 'badge-warning' if t.priority=='medium' else 'badge-info' }}">{{ t.priority }}</span></td>
+                <td class="px-6 py-4"><span class="badge {{ 'badge-success' if t.status=='closed' else 'badge-info' if t.status=='in_progress' else 'badge-warning' }}">{{ t.status }}</span></td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ t.department }}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ t.created_at[:10] }}</td>
+                <td class="px-6 py-4"><a href="/tickets/{{ t.uuid }}" class="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition inline-flex"><i class="fas fa-eye"></i></a></td>
+            </tr>
+            {% endfor %}
+            {% if not tickets %}<tr><td colspan="7" class="px-6 py-16 text-center text-gray-600">No support tickets yet</td></tr>{% endif %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

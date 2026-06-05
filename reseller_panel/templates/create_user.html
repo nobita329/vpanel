@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 animate-in">
+    <h1 class="text-2xl font-bold text-white">Create {{ role|title }}</h1>
+    <p class="text-gray-500 mt-1">Add a new {{ role }} account to the platform</p>
+</div>
+<div class="max-w-2xl card rounded-xl p-6 animate-in">
+    <form method="POST" class="space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Username <span class="text-red-400">*</span></label>
+                <input type="text" name="username" required pattern="[a-zA-Z0-9_-]+" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Email</label>
+                <input type="email" name="email" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Password <span class="text-red-400">*</span></label>
+                <input type="text" name="password" required minlength="6" value="vpanel@123" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Role</label>
+                <select name="role" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                    {% if current_user.role=='admin' %}<option value="reseller" {{ 'selected' if role=='reseller' else '' }}>Reseller</option>{% endif %}
+                    <option value="client" {{ 'selected' if role=='client' else '' }}>Client</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Parent Reseller</label>
+                <select name="parent_id" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"><option value="">None</option>{% for r in resellers %}<option value="{{ r.id }}">{{ r.username }}</option>{% endfor %}</select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Initial Balance ($)</label>
+                <input type="number" name="balance" value="0" step="0.01" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+            </div>
+        </div>
+        <div class="border-t border-gray-800/50 pt-5">
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-sliders text-blue-400"></i>Resource Limits</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">Max VMs</label><input type="number" name="max_vms" value="5" min="1" max="999" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">Max CPU</label><input type="number" name="max_cpus" value="8" min="1" max="999" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">Max RAM (MB)</label><input type="number" name="max_ram" value="16384" min="256" max="999999" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">Max Disk (GB)</label><input type="number" name="max_disk" value="200" min="10" max="99999" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">Allowed OS</label><input type="text" name="allowed_os" value="all" placeholder="all or comma-separated" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">Status</label><select name="status" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"><option value="active">Active</option><option value="suspended">Suspended</option></select></div>
+            </div>
+        </div>
+        <div class="pt-4 flex items-center space-x-4">
+            <button type="submit" class="btn-primary px-8 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Create {{ role|title }}</button>
+            <a href="/users" class="text-gray-500 hover:text-gray-300 text-sm">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

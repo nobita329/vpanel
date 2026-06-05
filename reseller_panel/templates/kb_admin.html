@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 animate-in flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-white">Manage Knowledge Base</h1>
+        <p class="text-gray-500 mt-1">Create and manage articles</p>
+    </div>
+    <button onclick="document.getElementById('createForm').classList.toggle('hidden')" class="btn-primary px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>New Article</button>
+</div>
+
+<div id="createForm" class="card rounded-xl p-6 mb-6 hidden animate-in">
+    <h2 class="text-lg font-bold text-white mb-4">Create Article</h2>
+    <form method="POST" action="/admin/kb/create" class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Title</label><input type="text" name="title" required class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Category</label>
+                <select name="category" class="input-field w-full rounded-xl px-4 py-3">
+                    <option value="general">General</option>
+                    <option value="getting-started">Getting Started</option>
+                    <option value="tutorials">Tutorials</option>
+                    <option value="troubleshooting">Troubleshooting</option>
+                    <option value="billing">Billing</option>
+                </select>
+            </div>
+        </div>
+        <div><label class="block text-sm font-medium text-gray-400 mb-2">Content (Markdown supported)</label><textarea name="content" rows="12" required class="input-field w-full rounded-xl px-4 py-3 font-mono text-sm"></textarea></div>
+        <button type="submit" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Publish Article</button>
+    </form>
+</div>
+
+<div class="card rounded-xl p-6 animate-in">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-file-lines text-blue-400"></i>Articles</h2>
+    {% if articles %}
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="table-header"><tr><th class="text-left p-3 text-xs text-gray-500 uppercase">Title</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Category</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Status</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Author</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Created</th><th class="text-right p-3 text-xs text-gray-500 uppercase">Actions</th></tr></thead>
+            <tbody>
+                {% for article in articles %}
+                <tr class="table-row border-b border-gray-800/30">
+                    <td class="p-3 font-medium text-white text-sm">{{ article.title }}</td>
+                    <td class="p-3"><span class="badge badge-info">{{ article.category }}</span></td>
+                    <td class="p-3"><span class="badge {{ 'badge-success' if article.published else 'badge-danger' }}">{{ 'Published' if article.published else 'Draft' }}</span></td>
+                    <td class="p-3 text-sm text-gray-400">{{ article.author_name or 'N/A' }}</td>
+                    <td class="p-3 text-sm text-gray-500">{{ article.created_at[:10] }}</td>
+                    <td class="p-3 text-right">
+                        <div class="flex justify-end gap-2">
+                            <button onclick="editArticle({{ article.id }})" class="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs hover:bg-blue-500/20">Edit</button>
+                            <form method="POST" action="/admin/kb/{{ article.id }}/delete" onsubmit="return confirm('Delete this article?')">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-600"><i class="fas fa-file-lines text-2xl mb-3"></i><p>No articles yet</p></div>
+    {% endif %}
+</div>
+
+<script>
+function editArticle(id){const title=prompt('Title:','');if(!title)return;const cat=prompt('Category:','general');const content=prompt('Content:');const pub=prompt('Published (1/0):','1');if(content===null)return;const fd=new FormData();fd.append('title',title);fd.append('category',cat||'general');fd.append('content',content);fd.append('published',pub||'1');fetch('/admin/kb/'+id+'/edit',{method:'POST',body:fd}).then(r=>{if(r.redirected)window.location.href=r.url;else location.reload();});}
+</script>
+{% endblock %}

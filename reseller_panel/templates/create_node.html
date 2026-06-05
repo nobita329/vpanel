@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 animate-in">
+    <h1 class="text-2xl font-bold text-white">Add Node</h1>
+    <p class="text-gray-500 mt-1">Register a new hypervisor node</p>
+</div>
+<div class="max-w-2xl card rounded-xl p-6 animate-in">
+    <form method="POST" class="space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Name <span class="text-red-400">*</span></label><input type="text" name="name" required class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Hostname <span class="text-red-400">*</span></label><input type="text" name="hostname" required pattern="[a-zA-Z0-9\.-]+" placeholder="node1.example.com" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">IP Address</label><input type="text" name="ip_address" placeholder="10.0.0.1" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Total CPU Cores</label><input type="number" name="total_cpus" value="64" min="1" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Total RAM (MB)</label><input type="number" name="total_ram" value="262144" min="1024" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Total Disk (GB)</label><input type="number" name="total_disk" value="2000" min="10" class="input-field w-full rounded-xl px-4 py-3"></div>
+        </div>
+        <div class="pt-4 flex items-center space-x-4">
+            <button type="submit" class="btn-primary px-8 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add Node</button>
+            <a href="/nodes" class="text-gray-500 hover:text-gray-300 text-sm">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

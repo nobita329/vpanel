@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between animate-in">
+    <div><h1 class="text-2xl font-bold text-white">Plans</h1><p class="text-gray-500 mt-1">Service plans and pricing templates</p></div>
+    <button onclick="showAddPlan()" class="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add Plan</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for p in plans %}
+    <div class="card rounded-xl p-6 animate-in relative overflow-hidden group">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/5 to-transparent rounded-bl-full"></div>
+        <h3 class="font-bold text-lg text-white">{{ p.name }}</h3>
+        <p class="text-gray-500 text-sm mt-1">{{ p.description }}</p>
+        <div class="mt-5 space-y-3 text-sm">
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5"><span class="text-gray-500"><i class="fas fa-microchip w-4 text-blue-400 mr-2"></i>vCPU</span><span class="text-white font-medium">{{ p.cpus }}</span></div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5"><span class="text-gray-500"><i class="fas fa-memory w-4 text-green-400 mr-2"></i>RAM</span><span class="text-white font-medium">{{ p.ram }} MB</span></div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5"><span class="text-gray-500"><i class="fas fa-hard-drive w-4 text-yellow-400 mr-2"></i>Disk</span><span class="text-white font-medium">{{ p.disk }} GB</span></div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5"><span class="text-gray-500"><i class="fas fa-wifi w-4 text-purple-400 mr-2"></i>Bandwidth</span><span class="text-white font-medium">{{ p.bandwidth }} GB</span></div>
+        </div>
+        <div class="mt-5 pt-4 border-t border-gray-800/50">
+            <p class="text-3xl font-bold gradient-text">${{ "%.2f"|format(p.price_monthly) }}</p>
+            <p class="text-xs text-gray-600 mt-1">/mo (${{ "%.3f"|format(p.price_hourly) }}/hr)</p>
+        </div>
+        <div class="mt-4">
+            <button onclick="deletePlan({{ p.id }})" class="w-full p-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition">Delete Plan</button>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not plans %}<div class="col-span-full text-center py-16 text-gray-600">No plans configured yet</div>{% endif %}
+</div>
+
+<div id="planModal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center">
+    <div class="bg-[#0f1320] rounded-2xl p-6 max-w-lg w-full mx-4 border border-gray-800/50 shadow-2xl">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-box text-blue-400"></i>Add Plan</h2>
+        <form id="planForm" class="space-y-4" onsubmit="return createPlan(event)">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2"><label class="block text-sm text-gray-400 mb-1">Name</label><input type="text" name="name" required class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div class="col-span-2"><label class="block text-sm text-gray-400 mb-1">Description</label><input type="text" name="description" value="" placeholder="e.g. 1 vCPU, 1GB RAM, 20GB SSD" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">vCPU</label><input type="number" name="cpus" value="1" min="1" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">RAM (MB)</label><input type="number" name="ram" value="1024" min="256" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">Disk (GB)</label><input type="number" name="disk" value="20" min="5" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">Bandwidth (GB)</label><input type="number" name="bandwidth" value="1000" min="0" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">Price Monthly ($)</label><input type="number" name="price_monthly" value="9.99" step="0.01" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">Price Hourly ($)</label><input type="number" name="price_hourly" value="0.01" step="0.001" class="input-field w-full rounded-xl px-4 py-3"></div>
+            </div>
+            <div class="flex space-x-3 pt-2"><button type="submit" class="btn-primary flex-1 py-3 rounded-xl font-semibold">Create Plan</button><button type="button" onclick="closePlanModal()" class="flex-1 py-3 rounded-xl bg-gray-800/50 text-gray-400 hover:bg-gray-700/50">Cancel</button></div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showAddPlan(){document.getElementById('planModal').classList.remove('hidden');}
+function closePlanModal(){document.getElementById('planModal').classList.add('hidden');}
+function createPlan(e){e.preventDefault();const f=new FormData(e.target);const btn=e.target.querySelector('button[type="submit"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Creating...';}fetch('/api/plan/create',{method:'POST',body:f}).then(r=>r.json()).then(d=>{showToast(d.message||d.error||'Created',d.success?'success':'error');closePlanModal();if(btn){btn.disabled=false;btn.innerHTML='Create Plan';}if(d.success)setTimeout(()=>location.reload(),1000);});return false;}
+function deletePlan(id){if(!confirm('Delete this plan? This cannot be undone.'))return;const btns=document.querySelectorAll('button[onclick*="deletePlan"]');btns.forEach(b=>{b.disabled=true;b.innerHTML='<i class="fas fa-spinner fa-spin"></i>';});fetch('/api/plan/'+id+'/delete',{method:'POST'}).then(r=>r.json()).then(d=>{showToast(d.message||'Deleted',d.success?'success':'error');if(d.success)setTimeout(()=>location.reload(),1000);else btns.forEach(b=>{b.disabled=false;b.innerHTML='Delete Plan';});});}
+</script>
+{% endblock %}

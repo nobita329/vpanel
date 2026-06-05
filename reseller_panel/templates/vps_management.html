@@ -1,0 +1,1876 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between animate-in">
+    <div>
+        <h1 class="text-2xl font-bold text-white">{{ vm.name }}</h1>
+        <p class="text-gray-500 mt-1">
+            {{ vm.os_type }}/{{ vm.os_version }}
+            {% if vm.node_name %}<span class="text-blue-400">· {{ vm.node_name }}</span>{% endif %}
+            · <span class="text-gray-400">{{ vm.owner }}</span>
+        </p>
+    </div>
+    <div class="flex items-center gap-3">
+        <span id="vmStatusBadge" class="badge {{ 'badge-success' if vm.status=='running' else 'badge-danger' }} text-sm px-4 py-2">
+            <span class="status-dot {{ vm.status }}"></span>{{ vm.status }}
+        </span>
+        <button onclick="toggleFavorite()" id="favoriteBtn" class="text-2xl {{ 'text-yellow-400' if vm.favorite else 'text-gray-600' }} hover:text-yellow-400 transition"><i class="fas {{ 'fa-star' if vm.favorite else 'fa-star' }}"></i></button>
+    </div>
+</div>
+
+{% if vm.suspended %}
+<div class="mb-4 p-4 rounded-xl bg-red-500/5 border border-red-500/20 text-red-400 text-sm flex items-center gap-3 animate-in"><i class="fas fa-triangle-exclamation"></i>This VM is suspended. Unsuspend it to resume normal operation.</div>
+{% endif %}
+
+<div class="mb-6 animate-in">
+    <div class="flex space-x-1 bg-[#0f1320] rounded-xl p-1.5 border border-gray-800/50 overflow-x-auto">
+        <button onclick="switchTab('config')" id="tabConfig" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap active bg-blue-500/20 text-blue-400"><i class="fas fa-wrench mr-2"></i>Configuration</button>
+        <button onclick="switchTab('network')" id="tabNetwork" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-gray-500 hover:text-gray-300"><i class="fas fa-shield-halved mr-2"></i>Network &amp; Security</button>
+        <button onclick="switchTab('backups')" id="tabBackups" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-gray-500 hover:text-gray-300"><i class="fas fa-floppy-disk mr-2"></i>Backups &amp; Snapshots</button>
+        <button onclick="switchTab('advanced')" id="tabAdvanced" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-gray-500 hover:text-gray-300"><i class="fas fa-microchip mr-2"></i>Advanced</button>
+        <button onclick="switchTab('alerts')" id="tabAlerts" class="tab-btn px-5 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-gray-500 hover:text-gray-300"><i class="fas fa-bell mr-2"></i>Alerts &amp; Notifications</button>
+    </div>
+</div>
+
+<div id="tabContentConfig" class="tab-content space-y-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-circle-info text-blue-400"></i>Basic Information</h2>
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div class="p-3 rounded-xl bg-white/5">
+                <span class="text-gray-500 text-xs">Name</span><br>
+                <span class="font-medium text-white" id="displayVmName">{{ vm.name }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5">
+                <span class="text-gray-500 text-xs">Hostname</span><br>
+                <span class="font-medium text-white" id="displayHostname">{{ vm.hostname }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5">
+                <span class="text-gray-500 text-xs">Operating System</span><br>
+                <span class="font-medium text-white">{{ vm.os_type }}/{{ vm.os_version }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5">
+                <span class="text-gray-500 text-xs">Status</span><br>
+                <span class="badge {{ 'badge-success' if vm.status=='running' else 'badge-danger' }} mt-1 inline-flex"><span class="status-dot {{ vm.status }}"></span>{{ vm.status }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5">
+                <span class="text-gray-500 text-xs">Created</span><br>
+                <span class="font-medium text-white">{{ vm.created_at }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5">
+                <span class="text-gray-500 text-xs">UUID</span><br>
+                <span class="font-mono text-xs text-gray-400 select-all">{{ vm.uuid }}</span>
+            </div>
+        </div>
+        <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-400 mb-2">Notes</label>
+            <textarea id="vmNotes" rows="2" class="input-field w-full rounded-xl px-4 py-3 text-sm">{{ vm.notes or '' }}</textarea>
+            <button onclick="saveNotes()" class="mt-2 btn-blue px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save Notes</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-chart-simple text-blue-400"></i>Resources</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <div class="flex justify-between text-sm mb-1.5"><span class="text-gray-500">vCPU</span><span class="text-gray-300 font-medium">{{ vm.cpus }} Cores</span></div>
+                <div class="progress-bar"><div class="progress-fill bg-gradient-to-r from-blue-500 to-blue-400" style="width:{{ vm.cpu_usage or 0 }}%"></div></div>
+                <span class="text-xs text-gray-600 mt-1 block">Usage: {{ vm.cpu_usage or 0 }}%</span>
+            </div>
+            <div>
+                <div class="flex justify-between text-sm mb-1.5"><span class="text-gray-500">RAM</span><span class="text-gray-300 font-medium">{{ vm.ram }} MB</span></div>
+                <div class="progress-bar"><div class="progress-fill bg-gradient-to-r from-green-500 to-emerald-400" style="width:{{ vm.ram_usage or 0 }}%"></div></div>
+                <span class="text-xs text-gray-600 mt-1 block">Usage: {{ vm.ram_usage or 0 }}%</span>
+            </div>
+            <div>
+                <div class="flex justify-between text-sm mb-1.5"><span class="text-gray-500">Disk</span><span class="text-gray-300 font-medium">{{ vm.disk_size }}</span></div>
+                <div class="progress-bar"><div class="progress-fill bg-gradient-to-r from-purple-500 to-pink-400" style="width:{{ vm.disk_usage or 0 }}%"></div></div>
+                <span class="text-xs text-gray-600 mt-1 block">Usage: {{ vm.disk_usage or 0 }}%</span>
+            </div>
+        </div>
+        {% if current_user.role in ['admin','reseller'] %}
+        <form id="upgradeForm" class="mt-6 border-t border-gray-800/50 pt-4" onsubmit="return doUpgrade(event)">
+            <p class="text-sm text-gray-400 mb-3 flex items-center gap-2"><i class="fas fa-arrow-up text-blue-400"></i>Upgrade / Downgrade Resources</p>
+            <div class="grid grid-cols-3 gap-4">
+                <div><label class="block text-xs font-medium text-gray-400 mb-1">vCPU</label><input type="number" name="cpus" value="{{ vm.cpus }}" min="1" max="64" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-xs font-medium text-gray-400 mb-1">RAM (MB)</label><input type="number" name="ram" value="{{ vm.ram }}" min="256" step="256" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-xs font-medium text-gray-400 mb-1">Disk Size</label><input type="text" name="disk_size" value="{{ vm.disk_size }}" class="input-field w-full rounded-xl px-4 py-3" placeholder="e.g. 40G"></div>
+            </div>
+            <button type="submit" class="mt-3 btn-blue px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-up-long"></i>Apply Changes</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-power-off text-blue-400"></i>Power Actions</h2>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="controlVM('start')" class="btn-success px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-play"></i>Start</button>
+            <button onclick="controlVM('stop')" class="btn-danger px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-stop"></i>Stop</button>
+            <button onclick="controlVM('restart')" class="btn-warning px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-rotate"></i>Reboot</button>
+            <button onclick="controlVM('force_restart')" class="bg-orange-500/10 text-orange-400 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-orange-500/20 transition inline-flex items-center gap-2"><i class="fas fa-power-off"></i>Force Reboot</button>
+            <button onclick="controlVM('force_stop')" class="bg-red-500/10 text-red-400 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition inline-flex items-center gap-2"><i class="fas fa-plug"></i>Force Shutdown</button>
+            {% if vm.suspended %}
+            <button onclick="controlVM('unsuspend')" class="bg-green-500/10 text-green-400 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-500/20 transition inline-flex items-center gap-2"><i class="fas fa-arrow-rotate-left"></i>Unsuspend</button>
+            {% else %}
+            <button onclick="controlVM('suspend')" class="bg-yellow-500/10 text-yellow-400 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-yellow-500/20 transition inline-flex items-center gap-2"><i class="fas fa-pause"></i>Suspend</button>
+            {% endif %}
+            <button onclick="deleteVM()" class="btn-red px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-trash-can"></i>Delete</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-copy text-blue-400"></i>Clone / Duplicate</h2>
+        <div class="flex gap-3">
+            <input type="text" id="cloneVmName" placeholder="New VM name" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="cloneVM()" class="btn-blue px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-copy"></i>Clone</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-tag text-blue-400"></i>Rename</h2>
+        <div class="flex gap-3">
+            <input type="text" id="renameVmInput" value="{{ vm.name }}" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="renameVM()" class="btn-blue px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-pen"></i>Rename</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-globe text-blue-400"></i>Change Hostname</h2>
+        <div class="flex gap-3">
+            <input type="text" id="changeHostnameInput" value="{{ vm.hostname }}" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="changeHostname()" class="btn-blue px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-server"></i>Update</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-key text-blue-400"></i>Reset Password</h2>
+        <div class="flex gap-3">
+            <input type="text" id="resetPasswordInput" value="" placeholder="Enter new password" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="resetPassword()" class="btn-warning px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-lock"></i>Reset</button>
+        </div>
+        <p class="text-xs text-gray-600 mt-2">Resets the root/administrator password. VM will be rebooted.</p>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-tags text-blue-400"></i>Tags &amp; Labels</h2>
+        <div class="flex gap-3 mb-4">
+            <input type="text" id="tagInput" placeholder="Enter tag name" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <select id="tagColorSelect" class="input-field rounded-xl px-3 py-3 text-sm">
+                <option value="blue">Blue</option>
+                <option value="green">Green</option>
+                <option value="red">Red</option>
+                <option value="yellow">Yellow</option>
+                <option value="purple">Purple</option>
+                <option value="pink">Pink</option>
+            </select>
+            <button onclick="addTag()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add</button>
+        </div>
+        <div id="tagsList" class="flex flex-wrap gap-2">{% if vm.tags %}{% for tag in vm.tags %}<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-{{ tag.color or 'blue' }}-500/10 text-{{ tag.color or 'blue' }}-400">{{ tag.name }}<button onclick="removeTag('{{ tag.name }}')" class="hover:text-white transition"><i class="fas fa-xmark"></i></button></span>{% endfor %}{% else %}<span class="text-gray-600 text-sm">No tags added yet.</span>{% endif %}</div>
+    </div>
+</div>
+
+<div id="tabContentNetwork" class="tab-content hidden space-y-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-shield-halved text-blue-400"></i>Firewall Rules</h2>
+        <div id="firewallList" class="text-sm text-gray-500 mb-4">Loading...</div>
+        <form id="firewallForm" class="space-y-3 border-t border-gray-800/50 pt-4" onsubmit="return addFirewallRule(event)">
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Action</label>
+                    <select name="rule_type" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                        <option value="allow">Allow</option>
+                        <option value="deny">Deny</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Protocol</label>
+                    <select name="protocol" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                        <option value="icmp">ICMP</option>
+                        <option value="any">Any</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Port Range</label>
+                    <input type="text" name="port_range" placeholder="e.g. 80 or 8000-9000" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Source IP</label>
+                    <input type="text" name="source_ip" placeholder="0.0.0.0/0" value="0.0.0.0/0" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Description</label>
+                    <input type="text" name="description" placeholder="Description" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+            </div>
+            <button type="submit" class="btn-blue px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add Rule</button>
+        </form>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-network-wired text-blue-400"></i>IPv4 / IPv6 Management</h2>
+        <div id="ipList" class="text-sm text-gray-500 mb-4">Loading...</div>
+        <div class="flex gap-3 border-t border-gray-800/50 pt-4">
+            <input type="text" id="addIpInput" placeholder="Enter IP address" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <select id="addIpVersion" class="input-field rounded-xl px-3 py-3 text-sm">
+                <option value="ipv4">IPv4</option>
+                <option value="ipv6">IPv6</option>
+            </select>
+            <button onclick="addIP()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add IP</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-cloud-arrow-up text-blue-400"></i>Floating IP</h2>
+        <div class="flex gap-3 items-end">
+            <div class="flex-1">
+                <label class="block text-xs font-medium text-gray-400 mb-1">Floating IP Address</label>
+                <input type="text" id="floatingIpInput" placeholder="e.g. 203.0.113.10" value="{{ vm.floating_ip or '' }}" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+            </div>
+            <button onclick="assignFloatingIP()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-link"></i>Assign</button>
+            <button onclick="removeFloatingIP()" class="bg-red-500/10 text-red-400 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition inline-flex items-center gap-2"><i class="fas fa-unlink"></i>Remove</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-arrow-right-arrow-left text-blue-400"></i>Reverse DNS (PTR)</h2>
+        <div class="flex gap-3">
+            <input type="text" id="ptrRecordInput" placeholder="e.g. mail.example.com" value="{{ vm.ptr_record or '' }}" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="savePTR()" class="btn-blue px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save</button>
+        </div>
+        <p class="text-xs text-gray-600 mt-2">Sets the PTR record for the primary IP of this VM.</p>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-server text-blue-400"></i>Custom DNS</h2>
+        <div class="flex gap-3">
+            <input type="text" id="dnsServersInput" placeholder="e.g. 8.8.8.8, 1.1.1.1" value="{{ vm.dns_servers|join(', ') if vm.dns_servers else '' }}" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="saveDNS()" class="btn-blue px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save</button>
+        </div>
+        <p class="text-xs text-gray-600 mt-2">Comma-separated list of DNS server IPs.</p>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-layer-group text-blue-400"></i>Private Network</h2>
+        <div class="flex gap-3">
+            <select id="privateNetworkSelect" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+                <option value="">-- Select Network --</option>
+            </select>
+            <button onclick="joinPrivateNetwork()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Join</button>
+            <button onclick="leavePrivateNetwork()" class="bg-red-500/10 text-red-400 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition inline-flex items-center gap-2"><i class="fas fa-minus"></i>Leave</button>
+        </div>
+        <div id="privateNetworkStatus" class="mt-3 text-xs text-gray-500"></div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-shield text-blue-400"></i>DDoS Protection</h2>
+        <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+            <div>
+                <p class="text-sm text-gray-300">DDoS Protection</p>
+                <p class="text-xs text-gray-600">Protects your VM against distributed denial-of-service attacks.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="ddosProtectionToggle" class="sr-only peer" {{ 'checked' if vm.ddos_protection else '' }}>
+                <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+            </label>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-key text-blue-400"></i>SSH Keys</h2>
+        <div id="sshKeyList" class="text-sm text-gray-500 mb-4">Loading...</div>
+        <div class="border-t border-gray-800/50 pt-4 space-y-3">
+            <h3 class="text-sm font-medium text-gray-400">Add SSH Key</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Key Name</label>
+                    <input type="text" id="sshKeyNameInput" placeholder="e.g. My Laptop" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Public Key</label>
+                    <textarea id="sshKeyPublicInput" rows="2" placeholder="ssh-rsa AAAA..." class="input-field w-full rounded-xl px-4 py-3 text-sm"></textarea>
+                </div>
+            </div>
+            <button onclick="addSSHKey()" class="btn-blue px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add Key</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-sort text-blue-400"></i>Boot Order</h2>
+        <div class="flex gap-3 items-center">
+            <select id="bootOrderSelect" class="input-field rounded-xl px-4 py-3 text-sm flex-1 max-w-xs">
+                <option value="disk" {{ 'selected' if vm.boot_order=='disk' else '' }}>Disk</option>
+                <option value="cdrom" {{ 'selected' if vm.boot_order=='cdrom' else '' }}>CD/DVD-ROM</option>
+                <option value="network" {{ 'selected' if vm.boot_order=='network' else '' }}>Network (PXE)</option>
+                <option value="disk,cdrom" {{ 'selected' if vm.boot_order=='disk,cdrom' else '' }}>Disk > CDROM</option>
+                <option value="cdrom,disk" {{ 'selected' if vm.boot_order=='cdrom,disk' else '' }}>CDROM > Disk</option>
+                <option value="network,disk" {{ 'selected' if vm.boot_order=='network,disk' else '' }}>Network > Disk</option>
+            </select>
+            <button onclick="saveBootOrder()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-microchip text-blue-400"></i>BIOS / UEFI</h2>
+        <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+            <div>
+                <p class="text-sm text-gray-300">Firmware Type</p>
+                <p class="text-xs text-gray-600">{{ 'UEFI' if vm.firmware=='uefi' else 'BIOS' }} mode</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="firmwareToggle" class="sr-only peer" {{ 'checked' if vm.firmware=='uefi' else '' }}>
+                <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-purple-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+            </label>
+        </div>
+    </div>
+</div>
+
+<div id="tabContentBackups" class="tab-content hidden space-y-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-circle-play text-blue-400"></i>Manual Backup</h2>
+        <button onclick="backupNow()" class="btn-green px-6 py-3 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-play"></i>Backup Now</button>
+        <p class="text-xs text-gray-600 mt-2">Creates an immediate backup/snapshot of this VM.</p>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-clock text-blue-400"></i>Backup Schedule</h2>
+        <form id="backupScheduleForm" class="space-y-4" onsubmit="return saveBackupSchedule(event)">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Frequency</label>
+                    <select name="frequency" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                        <option value="daily" {{ 'selected' if vm.backup_frequency=='daily' else '' }}>Daily</option>
+                        <option value="weekly" {{ 'selected' if vm.backup_frequency=='weekly' else '' }}>Weekly</option>
+                        <option value="monthly" {{ 'selected' if vm.backup_frequency=='monthly' else '' }}>Monthly</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Hour (0-23)</label>
+                    <input type="number" name="hour" value="{{ vm.backup_hour or 2 }}" min="0" max="23" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Retention (days)</label>
+                    <input type="number" name="retention_count" value="{{ vm.backup_retention or 7 }}" min="1" max="365" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Enabled</label>
+                    <select name="enabled" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                        <option value="1" {{ 'selected' if vm.backup_enabled else '' }}>Yes</option>
+                        <option value="0" {{ 'selected' if not vm.backup_enabled else '' }}>No</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn-blue px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save Schedule</button>
+            <div id="backupScheduleInfo" class="text-xs text-gray-500"></div>
+        </form>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-white flex items-center gap-2"><i class="fas fa-camera text-blue-400"></i>Snapshots / Backups</h2>
+        </div>
+        <div id="backupList" class="text-sm text-gray-500">Loading...</div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-circle-plus text-blue-400"></i>Create Snapshot</h2>
+        <div class="flex gap-3">
+            <input type="text" id="snapshotNameInput" placeholder="Enter snapshot name" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="createSnapshot()" class="btn-blue px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Create Snapshot</button>
+        </div>
+        <div id="snapshotList" class="mt-4 text-sm text-gray-500"></div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-hard-drive text-blue-400"></i>Create Template</h2>
+        <p class="text-sm text-gray-500 mb-3">Save this VM as a template for quick deployment.</p>
+        <div class="flex gap-3">
+            <input type="text" id="templateNameInput" placeholder="Template name" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="createTemplate()" class="btn-blue px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save as Template</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-rocket text-blue-400"></i>Deploy From Template</h2>
+        <div class="flex gap-3">
+            <select id="deployTemplateSelect" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+                <option value="">-- Select Template --</option>
+            </select>
+            <input type="text" id="deployVmName" placeholder="New VM name" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="deployFromTemplate()" class="btn-green px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-rocket"></i>Deploy</button>
+        </div>
+    </div>
+</div>
+
+<div id="tabContentAdvanced" class="tab-content hidden space-y-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-rotate text-red-400"></i>Reinstall OS</h2>
+        <p class="text-sm text-gray-500 mb-4 flex items-center gap-2"><i class="fas fa-triangle-exclamation text-red-400"></i>VM must be stopped. All data will be erased permanently.</p>
+        <form id="reinstallForm" class="space-y-4" onsubmit="return doReinstall(event)">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">OS Type</label>
+                    <select name="os_type" id="reinstallOsType" onchange="updateReinstallVersions()" class="input-field w-full rounded-xl px-4 py-3">
+                        {% for os in os_images %}<option value="{{ os }}" {{ 'selected' if os==vm.os_type else '' }}>{{ os|title }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">OS Version</label>
+                    <select name="os_version" id="reinstallOsVersion" class="input-field w-full rounded-xl px-4 py-3"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Password</label>
+                    <input type="text" name="password" placeholder="New root password" class="input-field w-full rounded-xl px-4 py-3">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Hostname</label>
+                    <input type="text" name="hostname" value="{{ vm.hostname }}" class="input-field w-full rounded-xl px-4 py-3">
+                </div>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-400">
+                <input type="checkbox" id="reinstallConfirm" required class="rounded bg-white/5 border-gray-700">
+                I understand this will erase all data
+            </label>
+            <button type="submit" class="btn-warning px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-rotate"></i>Reinstall</button>
+        </form>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-life-ring text-blue-400"></i>Rescue Mode</h2>
+        <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+            <div>
+                <p class="text-sm text-gray-300">Rescue Mode</p>
+                <p class="text-xs text-gray-600">Boots the VM into a minimal rescue environment for troubleshooting. SSH credentials will be displayed after activation.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="rescueModeToggle" class="sr-only peer" {{ 'checked' if vm.rescue_mode else '' }}>
+                <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-yellow-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+            </label>
+        </div>
+        <div id="rescueModeInfo" class="mt-3 text-xs text-gray-500"></div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-compact-disc text-purple-400"></i>ISO Management</h2>
+        <div class="space-y-4">
+            <div class="flex gap-3">
+                <select id="isoLibrarySelect" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+                    <option value="">-- Select from ISO Library --</option>
+                </select>
+                <button onclick="mountISOLibrary()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-circle-play"></i>Mount</button>
+            </div>
+            <div class="border-t border-gray-800/50 pt-4">
+                <h3 class="text-sm font-medium text-gray-400 mb-2">Upload Custom ISO</h3>
+                <div class="flex gap-3">
+                    <input type="file" id="customIsoUpload" accept=".iso" class="input-field flex-1 rounded-xl px-4 py-3 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-500/10 file:text-blue-400 hover:file:bg-blue-500/20">
+                    <button onclick="uploadISO()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-upload"></i>Upload</button>
+                </div>
+                <p class="text-xs text-gray-600 mt-2">Max file size: 2GB</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="unmountISO()" class="bg-red-500/10 text-red-400 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition inline-flex items-center gap-2"><i class="fas fa-eject"></i>Unmount ISO</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-database text-blue-400"></i>Additional Storage</h2>
+        <div id="diskList" class="text-sm text-gray-500 mb-4">Loading...</div>
+        <div class="border-t border-gray-800/50 pt-4">
+            <h3 class="text-sm font-medium text-gray-400 mb-3">Attach New Disk</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Size</label>
+                    <input type="text" id="newDiskSize" placeholder="e.g. 20G" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Mount Point</label>
+                    <input type="text" id="newDiskMount" placeholder="e.g. /mnt/storage" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+                </div>
+            </div>
+            <button onclick="attachDisk()" class="mt-3 btn-blue px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Attach Disk</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-scroll text-blue-400"></i>Startup Script</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Script Content</label>
+                <textarea id="startupScriptContent" rows="5" placeholder="#!/bin/bash&#10;echo 'Hello World'" class="input-field w-full rounded-xl px-4 py-3 text-sm font-mono">{{ vm.startup_script or '' }}</textarea>
+            </div>
+            <div class="flex gap-3">
+                <select id="startupScriptSelect" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+                    <option value="">-- Saved Scripts --</option>
+                </select>
+                <button onclick="saveStartupScript()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save Script</button>
+                <button onclick="executeStartupScript()" class="btn-green px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-play"></i>Execute Now</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-cloud text-blue-400"></i>Cloud-Init Configuration</h2>
+        <form id="cloudInitForm" class="space-y-4" onsubmit="return saveCloudInit(event)">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Default Username</label>
+                    <input type="text" name="username" value="{{ vm.cloud_init_username or vm.username }}" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Default Password</label>
+                    <input type="text" name="password" value="{{ vm.cloud_init_password or vm.password }}" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Hostname</label>
+                    <input type="text" name="hostname" value="{{ vm.cloud_init_hostname or vm.hostname }}" class="input-field w-full rounded-xl px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">SSH Authorized Keys</label>
+                    <textarea name="ssh_keys" rows="2" placeholder="One key per line" class="input-field w-full rounded-xl px-4 py-3 text-sm font-mono">{{ vm.cloud_init_ssh_keys or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn-blue px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save Cloud-Init</button>
+        </form>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-play-circle text-emerald-400"></i>Auto Start / Stop</h2>
+        <div class="space-y-3">
+            <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                <div>
+                    <p class="text-sm text-gray-300">Auto Start</p>
+                    <p class="text-xs text-gray-600">Automatically start this VM on host boot.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoStartToggle" class="sr-only peer" {{ 'checked' if vm.auto_start else '' }}>
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+            </div>
+            <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                <div>
+                    <p class="text-sm text-gray-300">Auto Stop</p>
+                    <p class="text-xs text-gray-600">Automatically stop this VM at a scheduled time.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input type="time" id="autoStopTime" value="{{ vm.auto_stop_time or '22:00' }}" class="input-field rounded-xl px-3 py-2 text-sm">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="autoStopToggle" class="sr-only peer" {{ 'checked' if vm.auto_stop_enabled else '' }}>
+                        <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-red-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-lock text-blue-400"></i>Protection</h2>
+        <div class="space-y-3">
+            <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                <div>
+                    <p class="text-sm text-gray-300">Lock VM (Protected)</p>
+                    <p class="text-xs text-gray-600">Prevents accidental deletion or modifications.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="lockVmToggle" class="sr-only peer" {{ 'checked' if vm.protected else '' }}>
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-red-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+            </div>
+            <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                <div>
+                    <p class="text-sm text-gray-300">Expiry Protection</p>
+                    <p class="text-xs text-gray-600">Prevents auto-deletion when VM expires.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="expiryProtectionToggle" class="sr-only peer" {{ 'checked' if vm.expiry_protection else '' }}>
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+            </div>
+            <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                <div>
+                    <p class="text-sm text-gray-300">Auto Renew</p>
+                    <p class="text-xs text-gray-600">Automatically renew subscription on expiry.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoRenewToggle" class="sr-only peer" {{ 'checked' if vm.auto_renew else '' }}>
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in border-red-500/20">
+        <h2 class="text-lg font-bold text-red-400 mb-4 flex items-center gap-2"><i class="fas fa-trash-can text-red-400"></i>Delete VM</h2>
+        <p class="text-sm text-gray-500 mb-4 flex items-center gap-2"><i class="fas fa-triangle-exclamation text-red-400"></i>This action is irreversible. All data will be permanently lost.</p>
+        <div class="space-y-3">
+            <label class="block text-sm text-gray-400">Type <span class="font-mono text-red-400 font-bold">DELETE</span> to confirm</label>
+            <div class="flex gap-3">
+                <input type="text" id="deleteConfirmInput" placeholder='Type "DELETE" to confirm' class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+                <button onclick="deleteVMConfirm()" class="btn-red px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-trash-can"></i>Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tabContentAlerts" class="tab-content hidden space-y-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-gauge-high text-blue-400"></i>Resource Alerts</h2>
+        <p class="text-sm text-gray-500 mb-4">Get notified when resource usage exceeds configured thresholds.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-4 rounded-xl bg-white/5">
+                <label class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-gray-300">CPU Alert</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="cpuAlertToggle" class="sr-only peer resource-alert-toggle" {{ 'checked' if vm.cpu_alert_enabled else '' }}>
+                        <div class="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                    </label>
+                </label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="cpuAlertThreshold" value="{{ vm.cpu_alert_threshold or 90 }}" min="1" max="100" class="input-field w-20 rounded-xl px-3 py-2 text-sm text-center">
+                    <span class="text-xs text-gray-500">%</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl bg-white/5">
+                <label class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-gray-300">RAM Alert</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="ramAlertToggle" class="sr-only peer resource-alert-toggle" {{ 'checked' if vm.ram_alert_enabled else '' }}>
+                        <div class="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                    </label>
+                </label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="ramAlertThreshold" value="{{ vm.ram_alert_threshold or 90 }}" min="1" max="100" class="input-field w-20 rounded-xl px-3 py-2 text-sm text-center">
+                    <span class="text-xs text-gray-500">%</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl bg-white/5">
+                <label class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-gray-300">Disk Alert</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="diskAlertToggle" class="sr-only peer resource-alert-toggle" {{ 'checked' if vm.disk_alert_enabled else '' }}>
+                        <div class="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                    </label>
+                </label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="diskAlertThreshold" value="{{ vm.disk_alert_threshold or 85 }}" min="1" max="100" class="input-field w-20 rounded-xl px-3 py-2 text-sm text-center">
+                    <span class="text-xs text-gray-500">%</span>
+                </div>
+            </div>
+        </div>
+        <button onclick="saveResourceAlerts()" class="mt-4 btn-blue px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save Alert Settings</button>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-bell text-blue-400"></i>Notification Channels</h2>
+        <div id="notificationChannelsList" class="text-sm text-gray-500 mb-4">Loading...</div>
+        <div class="border-t border-gray-800/50 pt-4">
+            <h3 class="text-sm font-medium text-gray-400 mb-3">Add Channel</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Type</label>
+                    <select id="channelTypeSelect" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                        <option value="email">Email</option>
+                        <option value="discord">Discord</option>
+                        <option value="telegram">Telegram</option>
+                        <option value="webhook">Webhook</option>
+                        <option value="slack">Slack</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Name</label>
+                    <input type="text" id="channelNameInput" placeholder="Channel name" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Configuration</label>
+                    <input type="text" id="channelConfigInput" placeholder="Email / Webhook URL / Chat ID" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+            </div>
+            <button onclick="addNotificationChannel()" class="mt-3 btn-blue px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add Channel</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-sliders text-blue-400"></i>Notification Rules</h2>
+        <p class="text-sm text-gray-500 mb-4">Map event types to notification channels.</p>
+        <div id="notificationRulesList" class="text-sm text-gray-500 mb-4">Loading...</div>
+        <div class="border-t border-gray-800/50 pt-4 flex gap-3">
+            <select id="ruleEventSelect" class="input-field rounded-xl px-3 py-2.5 text-sm flex-1">
+                <option value="vm_started">VM Started</option>
+                <option value="vm_stopped">VM Stopped</option>
+                <option value="vm_rebooted">VM Rebooted</option>
+                <option value="vm_suspended">VM Suspended</option>
+                <option value="vm_unsuspended">VM Unsuspended</option>
+                <option value="vm_deleted">VM Deleted</option>
+                <option value="cpu_alert">CPU Threshold Alert</option>
+                <option value="ram_alert">RAM Threshold Alert</option>
+                <option value="disk_alert">Disk Threshold Alert</option>
+                <option value="backup_failed">Backup Failed</option>
+                <option value="backup_completed">Backup Completed</option>
+            </select>
+            <select id="ruleChannelSelect" class="input-field rounded-xl px-3 py-2.5 text-sm flex-1">
+                <option value="">-- Channel --</option>
+            </select>
+            <button onclick="addNotificationRule()" class="btn-blue px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add Rule</button>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-code text-blue-400"></i>Webhook Integration</h2>
+        <div id="webhookList" class="text-sm text-gray-500 mb-4">Loading...</div>
+        <div class="border-t border-gray-800/50 pt-4">
+            <h3 class="text-sm font-medium text-gray-400 mb-3">Add Webhook</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">URL</label>
+                    <input type="text" id="webhookUrlInput" placeholder="https://hooks.example.com/..." class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Secret</label>
+                    <input type="text" id="webhookSecretInput" placeholder="Optional secret" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Events</label>
+                    <select id="webhookEventSelect" class="input-field w-full rounded-xl px-3 py-2.5 text-sm">
+                        <option value="*">All Events</option>
+                        <option value="vm_started,vm_stopped,vm_rebooted">State Changes</option>
+                        <option value="cpu_alert,ram_alert,disk_alert">Resource Alerts</option>
+                        <option value="backup_failed,backup_completed">Backup Events</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="addWebhook()" class="mt-3 btn-blue px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Add Webhook</button>
+        </div>
+    </div>
+
+    {% if current_user.role in ['admin','reseller'] %}
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-arrow-right-arrow-left text-blue-400"></i>Transfer Ownership</h2>
+        <p class="text-sm text-gray-500 mb-3">Transfer this VM to another user.</p>
+        <div class="flex gap-3">
+            <input type="text" id="transferUserInput" placeholder="Search by username or email" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+            <button onclick="transferOwnership()" class="btn-warning px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-right-left"></i>Transfer</button>
+        </div>
+        <div id="transferResults" class="mt-2 text-xs text-gray-500"></div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-arrows-spin text-blue-400"></i>Migrate VM</h2>
+        <p class="text-sm text-gray-500 mb-3">Migrate this VM to another node. VM will be temporarily unavailable.</p>
+        <div class="flex gap-3">
+            <select id="migrateNodeSelect" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+                <option value="">-- Select Target Node --</option>
+            </select>
+            <button onclick="migrateVM()" class="btn-warning px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-arrows-spin"></i>Migrate</button>
+        </div>
+        <div id="migrateInfo" class="mt-2 text-xs text-gray-500"></div>
+    </div>
+    {% endif %}
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-clock-rotate-left text-blue-400"></i>Activity Log</h2>
+        <div id="activityLog" class="text-sm max-h-80 overflow-y-auto space-y-1">
+            <div class="text-center py-8 text-gray-600">Loading activity log...</div>
+        </div>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-download text-blue-400"></i>Connection Details</h2>
+        <button onclick="downloadConnectionDetails()" class="btn-blue px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-file-lines"></i>Download Connection Info</button>
+        <p class="text-xs text-gray-600 mt-2">Downloads a text file with SSH, VNC, and login credentials.</p>
+    </div>
+
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-heart-pulse text-green-400"></i>Health Check</h2>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                <div>
+                    <p class="text-sm text-gray-300">Uptime Monitoring</p>
+                    <p class="text-xs text-gray-600">Pings this VM every 60 seconds to check availability.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="uptimeMonitoringToggle" class="sr-only peer" {{ 'checked' if vm.uptime_monitoring else '' }}>
+                    <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
+            </div>
+            <div class="p-4 rounded-xl bg-white/5">
+                <label class="block text-xs font-medium text-gray-400 mb-2">TCP Port Check</label>
+                <div class="flex gap-3">
+                    <input type="number" id="healthCheckPort" placeholder="Port (e.g. 22, 80, 443)" value="{{ vm.health_check_port or 22 }}" class="input-field flex-1 rounded-xl px-4 py-3 text-sm">
+                    <button onclick="saveHealthCheck()" class="btn-blue px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save</button>
+                </div>
+                <p class="text-xs text-gray-600 mt-2">Checks if the specified TCP port is reachable.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const VM_UUID = '{{ vm.uuid }}';
+const CSRF_TOKEN = '';
+const OS_IMAGES = {{ os_images_json|safe }};
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('active', 'bg-blue-500/20', 'text-blue-400');
+        el.classList.add('text-gray-500');
+    });
+    const content = document.getElementById('tabContent' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (content) content.classList.remove('hidden');
+    const btn = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (btn) {
+        btn.classList.add('active', 'bg-blue-500/20', 'text-blue-400');
+        btn.classList.remove('text-gray-500');
+    }
+}
+
+function api(method, endpoint, data, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+    const opts = { method: method.toUpperCase(), headers: {} };
+    if (data instanceof FormData) {
+        opts.body = data;
+    } else if (data) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(data);
+    }
+    return fetch('/api/vm/' + VM_UUID + endpoint, opts).then(r => r.json()).then(d => {
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || btn.innerHTML; }
+        if (d.success) { showToast(d.message || 'Done', 'success'); } else { showToast(d.error || d.message || 'Failed', 'error'); }
+        return d;
+    }).catch(e => {
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || btn.innerHTML; }
+        showToast('Request failed: ' + e.message, 'error');
+        return { success: false, error: e.message };
+    });
+}
+
+function confirmAction(msg, fn) {
+    if (!confirm(msg)) return;
+    fn();
+}
+
+function controlVM(action) {
+    const destructive = ['stop', 'restart', 'suspend', 'force_stop', 'force_restart'];
+    if (destructive.includes(action) && !confirm('Are you sure you want to ' + action.replace('_', ' ') + ' this VM?')) return;
+    api('POST', '/' + action).then(d => { if (d.success) setTimeout(() => location.reload(), 1500); });
+}
+
+function deleteVM() {
+    if (!confirm('Delete this VM? This cannot be undone.')) return;
+    api('POST', '/delete').then(d => { if (d.success) setTimeout(() => window.location.href = '/vms', 1000); });
+}
+
+function deleteVMConfirm() {
+    const input = document.getElementById('deleteConfirmInput');
+    if (!input || input.value !== 'DELETE') { showToast('Type DELETE to confirm', 'error'); return; }
+    if (!confirm('Permanently delete this VM? All data will be lost.')) return;
+    const btn = document.querySelector('button[onclick="deleteVMConfirm()"]');
+    api('POST', '/delete', null, btn).then(d => { if (d.success) setTimeout(() => window.location.href = '/vms', 1000); });
+}
+
+function cloneVM() {
+    const name = document.getElementById('cloneVmName');
+    if (!name.value.trim()) { showToast('Enter a name for the new VM', 'error'); return; }
+    const btn = document.querySelector('button[onclick="cloneVM()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('name', name.value.trim());
+    api('POST', '/clone', fd, btn).then(d => { if (d.success) name.value = ''; });
+}
+
+function renameVM() {
+    const input = document.getElementById('renameVmInput');
+    if (!input.value.trim()) { showToast('Enter a new name', 'error'); return; }
+    const btn = document.querySelector('button[onclick="renameVM()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('name', input.value.trim());
+    api('POST', '/rename', fd, btn).then(d => {
+        if (d.success) { document.getElementById('displayVmName').textContent = input.value.trim(); }
+    });
+}
+
+function changeHostname() {
+    const input = document.getElementById('changeHostnameInput');
+    if (!input.value.trim()) { showToast('Enter a hostname', 'error'); return; }
+    const btn = document.querySelector('button[onclick="changeHostname()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('hostname', input.value.trim());
+    api('POST', '/hostname', fd, btn).then(d => {
+        if (d.success) { document.getElementById('displayHostname').textContent = input.value.trim(); }
+    });
+}
+
+function resetPassword() {
+    const input = document.getElementById('resetPasswordInput');
+    if (!input.value.trim()) { showToast('Enter a new password', 'error'); return; }
+    if (!confirm('Reset the root password? The VM will be rebooted.')) return;
+    const btn = document.querySelector('button[onclick="resetPassword()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('password', input.value.trim());
+    api('POST', '/password', fd, btn).then(d => {
+        if (d.success) { input.value = ''; setTimeout(() => location.reload(), 2000); }
+    });
+}
+
+function saveNotes() {
+    const notes = document.getElementById('vmNotes');
+    const btn = document.querySelector('button[onclick="saveNotes()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('notes', notes.value);
+    api('POST', '/notes', fd, btn);
+}
+
+function toggleFavorite() {
+    const btn = document.getElementById('favoriteBtn');
+    api('POST', '/favorite').then(d => {
+        if (d.success) {
+            if (d.favorite) { btn.classList.remove('text-gray-600'); btn.classList.add('text-yellow-400'); }
+            else { btn.classList.remove('text-yellow-400'); btn.classList.add('text-gray-600'); }
+        }
+    });
+}
+
+// Tags
+function addTag() {
+    const name = document.getElementById('tagInput');
+    const color = document.getElementById('tagColorSelect');
+    if (!name.value.trim()) { showToast('Enter a tag name', 'error'); return; }
+    const btn = document.querySelector('button[onclick="addTag()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('name', name.value.trim());
+    fd.append('color', color.value);
+    api('POST', '/tags', fd, btn).then(d => {
+        if (d.success) { name.value = ''; loadTags(); }
+    });
+}
+
+function removeTag(tagName) {
+    if (!confirm('Remove tag "' + tagName + '"?')) return;
+    const fd = new FormData();
+    fd.append('name', tagName);
+    api('POST', '/tags/remove', fd).then(d => { if (d.success) loadTags(); });
+}
+
+function loadTags() {
+    fetch('/api/vm/' + VM_UUID + '/tags').then(r => r.json()).then(d => {
+        const el = document.getElementById('tagsList');
+        if (!d.success || !d.tags || !d.tags.length) {
+            el.innerHTML = '<span class="text-gray-600 text-sm">No tags added yet.</span>';
+            return;
+        }
+        el.innerHTML = d.tags.map(t =>
+            '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-' + (t.color || 'blue') + '-500/10 text-' + (t.color || 'blue') + '-400">' +
+            t.name +
+            '<button onclick="removeTag(\'' + t.name + '\')" class="hover:text-white transition"><i class="fas fa-xmark"></i></button></span>'
+        ).join('');
+    });
+}
+
+// Upgrade
+function doUpgrade(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...'; btn.disabled = true; }
+    const fd = new FormData(e.target);
+    fetch('/api/vm/' + VM_UUID + '/upgrade', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        showToast(d.message || d.error || 'Upgraded', d.success ? 'success' : 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-up-long"></i>Apply Changes'; }
+        if (d.success) setTimeout(() => location.reload(), 2000);
+    }).catch(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-up-long"></i>Apply Changes'; }
+    });
+    return false;
+}
+
+// Firewall
+function loadFirewallRules() {
+    fetch('/api/vm/' + VM_UUID + '/firewall').then(r => r.json()).then(d => {
+        const el = document.getElementById('firewallList');
+        if (!d.success || !d.rules || !d.rules.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No firewall rules. All traffic is allowed.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.rules.map(r => {
+            const bg = r.rule_type === 'allow' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400';
+            const portInfo = r.port_range ? ' · Port ' + r.port_range : '';
+            return '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+                '<div class="flex items-center gap-3 flex-wrap">' +
+                '<span class="badge ' + bg + '">' + r.rule_type.toUpperCase() + '</span>' +
+                '<span class="text-xs text-gray-300 font-mono">' + r.protocol + portInfo + ' · ' + (r.source_ip || '0.0.0.0/0') + '</span>' +
+                (r.description ? '<span class="text-xs text-gray-600">' + r.description + '</span>' : '') +
+                '</div>' +
+                '<button onclick="deleteFirewallRule(' + r.id + ')" class="text-red-400 hover:text-red-300 text-xs">Delete</button>' +
+                '</div>';
+        }).join('') + '</div>';
+    });
+}
+
+function addFirewallRule(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...'; btn.disabled = true; }
+    const fd = new FormData(e.target);
+    fetch('/api/vm/' + VM_UUID + '/firewall', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        showToast(d.message || d.error || 'Rule added', d.success ? 'success' : 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-plus"></i>Add Rule'; }
+        if (d.success) { loadFirewallRules(); e.target.reset(); }
+    }).catch(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-plus"></i>Add Rule'; }
+    });
+    return false;
+}
+
+function deleteFirewallRule(rid) {
+    if (!confirm('Delete this firewall rule?')) return;
+    api('POST', '/firewall/' + rid + '/delete').then(d => { if (d.success) loadFirewallRules(); });
+}
+
+// IP Management
+function loadIPs() {
+    fetch('/api/vm/' + VM_UUID + '/ips').then(r => r.json()).then(d => {
+        const el = document.getElementById('ipList');
+        if (!d.success || !d.ips || !d.ips.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No IP addresses assigned.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.ips.map(ip =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div class="flex items-center gap-3"><span class="badge ' + (ip.version === 6 ? 'badge-purple' : 'badge-info') + '">' + (ip.version === 6 ? 'IPv6' : 'IPv4') + '</span>' +
+            '<span class="text-sm font-mono text-gray-300">' + ip.address + '</span>' +
+            (ip.is_main ? '<span class="badge badge-success text-[10px]">Primary</span>' : '') +
+            '</div>' +
+            '<button onclick="removeIP(\'' + ip.address + '\')" class="text-red-400 hover:text-red-300 text-xs">Remove</button>' +
+            '</div>'
+        ).join('') + '</div>';
+    });
+}
+
+function addIP() {
+    const addr = document.getElementById('addIpInput');
+    const ver = document.getElementById('addIpVersion');
+    if (!addr.value.trim()) { showToast('Enter an IP address', 'error'); return; }
+    const btn = document.querySelector('button[onclick="addIP()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('address', addr.value.trim());
+    fd.append('version', ver.value);
+    api('POST', '/ips', fd, btn).then(d => { if (d.success) { addr.value = ''; loadIPs(); } });
+}
+
+function removeIP(address) {
+    if (!confirm('Remove IP ' + address + '?')) return;
+    const fd = new FormData();
+    fd.append('address', address);
+    api('POST', '/ips/remove', fd).then(d => { if (d.success) loadIPs(); });
+}
+
+// Floating IP
+function assignFloatingIP() {
+    const input = document.getElementById('floatingIpInput');
+    if (!input.value.trim()) { showToast('Enter a floating IP', 'error'); return; }
+    const btn = document.querySelector('button[onclick="assignFloatingIP()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('floating_ip', input.value.trim());
+    api('POST', '/floating-ip', fd, btn);
+}
+
+function removeFloatingIP() {
+    if (!confirm('Remove floating IP?')) return;
+    api('POST', '/floating-ip/remove').then(d => {
+        if (d.success) document.getElementById('floatingIpInput').value = '';
+    });
+}
+
+// Reverse DNS
+function savePTR() {
+    const input = document.getElementById('ptrRecordInput');
+    const btn = document.querySelector('button[onclick="savePTR()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('ptr', input.value.trim());
+    api('POST', '/ptr', fd, btn);
+}
+
+// Custom DNS
+function saveDNS() {
+    const input = document.getElementById('dnsServersInput');
+    const btn = document.querySelector('button[onclick="saveDNS()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('dns_servers', input.value.trim());
+    api('POST', '/dns', fd, btn);
+}
+
+// Private Network
+function loadPrivateNetworks() {
+    fetch('/api/vm/' + VM_UUID + '/private-networks').then(r => r.json()).then(d => {
+        const sel = document.getElementById('privateNetworkSelect');
+        const status = document.getElementById('privateNetworkStatus');
+        if (d.success && d.networks) {
+            sel.innerHTML = '<option value="">-- Select Network --</option>' +
+                d.networks.map(n => '<option value="' + n.id + '">' + n.name + ' (' + n.subnet + ')</option>').join('');
+            if (d.attached && d.attached.length) {
+                status.innerHTML = 'Attached networks: ' + d.attached.map(n => '<span class="badge badge-info">' + n.name + '</span>').join(' ');
+            } else {
+                status.innerHTML = 'Not attached to any private network.';
+            }
+        }
+    });
+}
+
+function joinPrivateNetwork() {
+    const sel = document.getElementById('privateNetworkSelect');
+    if (!sel.value) { showToast('Select a network', 'error'); return; }
+    const fd = new FormData();
+    fd.append('network_id', sel.value);
+    api('POST', '/private-networks/join', fd).then(d => { if (d.success) loadPrivateNetworks(); });
+}
+
+function leavePrivateNetwork() {
+    const sel = document.getElementById('privateNetworkSelect');
+    if (!sel.value) { showToast('Select a network', 'error'); return; }
+    if (!confirm('Leave this private network?')) return;
+    const fd = new FormData();
+    fd.append('network_id', sel.value);
+    api('POST', '/private-networks/leave', fd).then(d => { if (d.success) loadPrivateNetworks(); });
+}
+
+// DDoS Protection
+document.getElementById('ddosProtectionToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('enabled', this.checked ? '1' : '0');
+    api('POST', '/ddos-protection', fd);
+});
+
+// SSH Keys
+function loadSSHKeys() {
+    fetch('/api/vm/' + VM_UUID + '/ssh-keys').then(r => r.json()).then(d => {
+        const el = document.getElementById('sshKeyList');
+        if (!d.success || !d.keys || !d.keys.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No SSH keys configured.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.keys.map(k =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div><p class="text-sm text-white">' + k.name + '</p><p class="text-xs text-gray-500 font-mono truncate max-w-md">' + k.fingerprint + '</p></div>' +
+            '<button onclick="deleteSSHKey(' + k.id + ')" class="text-red-400 hover:text-red-300 text-xs">Delete</button>' +
+            '</div>'
+        ).join('') + '</div>';
+    });
+}
+
+function addSSHKey() {
+    const name = document.getElementById('sshKeyNameInput');
+    const pub = document.getElementById('sshKeyPublicInput');
+    if (!name.value.trim() || !pub.value.trim()) { showToast('Enter both name and public key', 'error'); return; }
+    const btn = document.querySelector('button[onclick="addSSHKey()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('name', name.value.trim());
+    fd.append('public_key', pub.value.trim());
+    api('POST', '/ssh-keys', fd, btn).then(d => {
+        if (d.success) { name.value = ''; pub.value = ''; loadSSHKeys(); }
+    });
+}
+
+function deleteSSHKey(kid) {
+    if (!confirm('Delete this SSH key?')) return;
+    api('POST', '/ssh-keys/' + kid + '/delete').then(d => { if (d.success) loadSSHKeys(); });
+}
+
+// Boot Order
+function saveBootOrder() {
+    const sel = document.getElementById('bootOrderSelect');
+    const btn = document.querySelector('button[onclick="saveBootOrder()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('boot_order', sel.value);
+    api('POST', '/boot-order', fd, btn);
+}
+
+// Firmware (BIOS/UEFI)
+document.getElementById('firmwareToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('firmware', this.checked ? 'uefi' : 'bios');
+    api('POST', '/firmware', fd);
+});
+
+// Backups
+function loadBackupSchedule() {
+    fetch('/api/vm/' + VM_UUID + '/backup/schedule').then(r => r.json()).then(d => {
+        const el = document.getElementById('backupScheduleInfo');
+        if (d.success && d.schedule) {
+            const s = d.schedule;
+            el.innerHTML = '<div class="flex gap-4 mt-3">' +
+                '<span>Next: <strong class="text-gray-300">' + (s.next_run || 'N/A') + '</strong></span>' +
+                '<span>Last: <strong class="text-gray-300">' + (s.last_run || 'Never') + '</strong></span>' +
+                '<span>Retention: <strong class="text-gray-300">' + s.retention_count + '</strong></span>' +
+                '</div>';
+        }
+    });
+}
+
+function saveBackupSchedule(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; btn.disabled = true; }
+    const fd = new FormData(e.target);
+    fetch('/api/vm/' + VM_UUID + '/backup/schedule', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        showToast(d.message || d.error || 'Schedule saved', d.success ? 'success' : 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-floppy-disk"></i>Save Schedule'; }
+        if (d.success) loadBackupSchedule();
+    }).catch(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-floppy-disk"></i>Save Schedule'; }
+    });
+    return false;
+}
+
+function backupNow() {
+    const btn = document.querySelector('button[onclick="backupNow()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Backing up...'; btn.disabled = true; }
+    api('POST', '/backup/now', null, btn).then(d => {
+        if (d.success) { setTimeout(() => { loadBackups(); loadSnapshots(); }, 2000); }
+    });
+}
+
+function loadBackups() {
+    fetch('/api/vm/' + VM_UUID + '/backups').then(r => r.json()).then(d => {
+        const el = document.getElementById('backupList');
+        if (!d.success || !d.backups || !d.backups.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No backups yet.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.backups.map(b =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div><p class="text-sm text-white">' + (b.name || 'Backup #' + b.id) + '</p>' +
+            '<p class="text-xs text-gray-500">' + (b.created_at || '') + ' · ' + (b.size ? (b.size / 1024 / 1024).toFixed(1) + 'MB' : 'N/A') + '</p></div>' +
+            '<div class="flex gap-1">' +
+            '<button onclick="downloadBackup(' + b.id + ')" class="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs hover:bg-blue-500/20"><i class="fas fa-download"></i></button>' +
+            '<button onclick="restoreBackup(' + b.id + ')" class="px-3 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-400 text-xs hover:bg-yellow-500/20"><i class="fas fa-rotate-left"></i></button>' +
+            '<button onclick="deleteBackup(' + b.id + ')" class="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20"><i class="fas fa-trash-can"></i></button>' +
+            '</div></div>'
+        ).join('') + '</div>';
+    });
+}
+
+function downloadBackup(bid) {
+    window.open('/api/vm/' + VM_UUID + '/backups/' + bid + '/download', '_blank');
+}
+
+function restoreBackup(bid) {
+    if (!confirm('Restore this backup? Current data may be overwritten.')) return;
+    api('POST', '/backups/' + bid + '/restore').then(d => {
+        if (d.success) setTimeout(() => location.reload(), 3000);
+    });
+}
+
+function deleteBackup(bid) {
+    if (!confirm('Delete this backup?')) return;
+    api('POST', '/backups/' + bid + '/delete').then(d => { if (d.success) loadBackups(); });
+}
+
+// Snapshots
+function createSnapshot() {
+    const name = document.getElementById('snapshotNameInput');
+    if (!name.value.trim()) { showToast('Enter a snapshot name', 'error'); return; }
+    const btn = document.querySelector('button[onclick="createSnapshot()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('name', name.value.trim());
+    api('POST', '/snapshots/create', fd, btn).then(d => {
+        if (d.success) { name.value = ''; loadSnapshots(); }
+    });
+}
+
+function loadSnapshots() {
+    fetch('/api/vm/' + VM_UUID + '/snapshots').then(r => r.json()).then(d => {
+        const el = document.getElementById('snapshotList');
+        if (!d.success || !d.snapshots || !d.snapshots.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No snapshots yet.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.snapshots.map(s =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div><p class="font-medium text-sm text-white">' + s.name + '</p>' +
+            '<p class="text-xs text-gray-500">' + (s.created_at || '') + ' · ' + (s.size ? (s.size / 1024 / 1024).toFixed(1) + 'MB' : 'N/A') + '</p></div>' +
+            '<div class="flex gap-1">' +
+            '<button onclick="revertSnapshot(' + s.id + ')" class="px-3 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-400 text-xs hover:bg-yellow-500/20">Revert</button>' +
+            '<button onclick="deleteSnapshot(' + s.id + ')" class="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20">Delete</button>' +
+            '</div></div>'
+        ).join('') + '</div>';
+    });
+}
+
+function revertSnapshot(sid) {
+    if (!confirm('Revert to this snapshot? The current disk state will be overwritten.')) return;
+    api('POST', '/snapshots/' + sid + '/revert').then(d => {
+        if (d.success) setTimeout(() => location.reload(), 2000);
+    });
+}
+
+function deleteSnapshot(sid) {
+    if (!confirm('Delete this snapshot?')) return;
+    api('POST', '/snapshots/' + sid + '/delete').then(d => { if (d.success) loadSnapshots(); });
+}
+
+// Templates
+function createTemplate() {
+    const name = document.getElementById('templateNameInput');
+    if (!name.value.trim()) { showToast('Enter a template name', 'error'); return; }
+    if (!confirm('Save this VM as a template?')) return;
+    const btn = document.querySelector('button[onclick="createTemplate()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('name', name.value.trim());
+    api('POST', '/template', fd, btn).then(d => { if (d.success) name.value = ''; });
+}
+
+function loadTemplates() {
+    fetch('/api/vm/' + VM_UUID + '/templates').then(r => r.json()).then(d => {
+        const sel = document.getElementById('deployTemplateSelect');
+        if (d.success && d.templates) {
+            sel.innerHTML = '<option value="">-- Select Template --</option>' +
+                d.templates.map(t => '<option value="' + t.id + '">' + t.name + '</option>').join('');
+        }
+    });
+}
+
+function deployFromTemplate() {
+    const sel = document.getElementById('deployTemplateSelect');
+    const name = document.getElementById('deployVmName');
+    if (!sel.value) { showToast('Select a template', 'error'); return; }
+    if (!name.value.trim()) { showToast('Enter a name for the new VM', 'error'); return; }
+    const btn = document.querySelector('button[onclick="deployFromTemplate()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('template_id', sel.value);
+    fd.append('name', name.value.trim());
+    api('POST', '/deploy-template', fd, btn).then(d => {
+        if (d.success) { name.value = ''; showToast('Deploying VM...', 'success'); }
+    });
+}
+
+// Reinstall
+function doReinstall(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reinstalling...'; btn.disabled = true; }
+    const fd = new FormData(e.target);
+    fetch('/api/vm/' + VM_UUID + '/reinstall', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        showToast(d.message || d.error, d.success ? 'success' : 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-rotate"></i>Reinstall'; }
+        if (d.success) setTimeout(() => location.reload(), 3000);
+    }).catch(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-rotate"></i>Reinstall'; }
+    });
+    return false;
+}
+
+function updateReinstallVersions() {
+    const t = document.getElementById('reinstallOsType');
+    const s = document.getElementById('reinstallOsVersion');
+    if (!t || !s) return;
+    const v = OS_IMAGES[t.value] || {};
+    s.innerHTML = '';
+    for (const [ver, info] of Object.entries(v)) {
+        const o = document.createElement('option');
+        o.value = ver;
+        o.textContent = info.name;
+        s.appendChild(o);
+    }
+}
+
+// Rescue Mode
+document.getElementById('rescueModeToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('enabled', this.checked ? '1' : '0');
+    const info = document.getElementById('rescueModeInfo');
+    if (this.checked) { info.innerHTML = '<span class="text-yellow-400">Rescue mode will be activated on next reboot.</span>'; }
+    else { info.innerHTML = '<span class="text-green-400">Rescue mode disabled.</span>'; }
+    api('POST', '/rescue-mode', fd);
+});
+
+// ISO Management
+function loadISOLibrary() {
+    fetch('/api/vm/' + VM_UUID + '/iso-library').then(r => r.json()).then(d => {
+        const sel = document.getElementById('isoLibrarySelect');
+        if (d.success && d.isos) {
+            sel.innerHTML = '<option value="">-- Select from ISO Library --</option>' +
+                d.isos.map(iso => '<option value="' + iso.path + '">' + iso.name + ' (' + (iso.size ? (iso.size / 1024 / 1024).toFixed(1) + 'MB' : '') + ')</option>').join('');
+        }
+    });
+}
+
+function mountISOLibrary() {
+    const sel = document.getElementById('isoLibrarySelect');
+    if (!sel.value) { showToast('Select an ISO', 'error'); return; }
+    const btn = document.querySelector('button[onclick="mountISOLibrary()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('iso_path', sel.value);
+    api('POST', '/iso/mount', fd, btn);
+}
+
+function unmountISO() {
+    if (!confirm('Unmount current ISO?')) return;
+    api('POST', '/iso/unmount');
+}
+
+function uploadISO() {
+    const fileInput = document.getElementById('customIsoUpload');
+    if (!fileInput.files || !fileInput.files[0]) { showToast('Select an ISO file', 'error'); return; }
+    const btn = document.querySelector('button[onclick="uploadISO()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('iso', fileInput.files[0]);
+    api('POST', '/iso/upload', fd, btn).then(d => {
+        if (d.success) { fileInput.value = ''; loadISOLibrary(); }
+    });
+}
+
+// Additional Storage
+function loadDisks() {
+    fetch('/api/vm/' + VM_UUID + '/disks').then(r => r.json()).then(d => {
+        const el = document.getElementById('diskList');
+        if (!d.success || !d.disks || !d.disks.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No additional disks attached.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.disks.map(dsk =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div><p class="text-sm text-white">' + (dsk.device || 'Disk') + ' — ' + dsk.size + '</p>' +
+            '<p class="text-xs text-gray-500">Mount: ' + (dsk.mount_point || 'Not mounted') + '</p></div>' +
+            '<button onclick="detachDisk(' + dsk.id + ')" class="text-red-400 hover:text-red-300 text-xs">Detach</button>' +
+            '</div>'
+        ).join('') + '</div>';
+    });
+}
+
+function attachDisk() {
+    const size = document.getElementById('newDiskSize');
+    const mount = document.getElementById('newDiskMount');
+    if (!size.value.trim()) { showToast('Enter disk size', 'error'); return; }
+    const btn = document.querySelector('button[onclick="attachDisk()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('size', size.value.trim());
+    fd.append('mount_point', mount.value.trim());
+    api('POST', '/disks', fd, btn).then(d => {
+        if (d.success) { size.value = ''; mount.value = ''; loadDisks(); }
+    });
+}
+
+function detachDisk(did) {
+    if (!confirm('Detach this disk?')) return;
+    api('POST', '/disks/' + did + '/detach').then(d => { if (d.success) loadDisks(); });
+}
+
+// Startup Script
+function loadStartupScripts() {
+    fetch('/api/vm/' + VM_UUID + '/startup-scripts').then(r => r.json()).then(d => {
+        const sel = document.getElementById('startupScriptSelect');
+        if (d.success && d.scripts) {
+            sel.innerHTML = '<option value="">-- Saved Scripts --</option>' +
+                d.scripts.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+        }
+    });
+}
+
+function saveStartupScript() {
+    const content = document.getElementById('startupScriptContent');
+    const btn = document.querySelector('button[onclick="saveStartupScript()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('script', content.value);
+    api('POST', '/startup-script', fd, btn);
+}
+
+function executeStartupScript() {
+    const content = document.getElementById('startupScriptContent');
+    if (!content.value.trim()) { showToast('No script content to execute', 'error'); return; }
+    if (!confirm('Execute this script on the VM now?')) return;
+    const btn = document.querySelector('button[onclick="executeStartupScript()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('script', content.value);
+    api('POST', '/startup-script/execute', fd, btn);
+}
+
+// Cloud-Init
+function saveCloudInit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; btn.disabled = true; }
+    const fd = new FormData(e.target);
+    fetch('/api/vm/' + VM_UUID + '/cloud-init', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        showToast(d.message || d.error || 'Saved', d.success ? 'success' : 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-floppy-disk"></i>Save Cloud-Init'; }
+    }).catch(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || '<i class="fas fa-floppy-disk"></i>Save Cloud-Init'; }
+    });
+    return false;
+}
+
+// Auto Start/Stop
+document.getElementById('autoStartToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('auto_start', this.checked ? '1' : '0');
+    api('POST', '/auto-start', fd);
+});
+
+document.getElementById('autoStopToggle')?.addEventListener('change', function () {
+    const time = document.getElementById('autoStopTime');
+    const fd = new FormData();
+    fd.append('enabled', this.checked ? '1' : '0');
+    fd.append('time', time ? time.value : '22:00');
+    api('POST', '/auto-stop', fd);
+});
+
+document.getElementById('autoStopTime')?.addEventListener('change', function () {
+    const toggle = document.getElementById('autoStopToggle');
+    if (toggle && toggle.checked) {
+        const fd = new FormData();
+        fd.append('enabled', '1');
+        fd.append('time', this.value);
+        api('POST', '/auto-stop', fd);
+    }
+});
+
+// Protection
+document.getElementById('lockVmToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('protected', this.checked ? '1' : '0');
+    api('POST', '/protection/lock', fd);
+});
+
+document.getElementById('expiryProtectionToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('enabled', this.checked ? '1' : '0');
+    api('POST', '/protection/expiry', fd);
+});
+
+document.getElementById('autoRenewToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('enabled', this.checked ? '1' : '0');
+    api('POST', '/protection/auto-renew', fd);
+});
+
+// Resource Alerts
+function saveResourceAlerts() {
+    const cpuEn = document.getElementById('cpuAlertToggle');
+    const ramEn = document.getElementById('ramAlertToggle');
+    const diskEn = document.getElementById('diskAlertToggle');
+    const cpuTh = document.getElementById('cpuAlertThreshold');
+    const ramTh = document.getElementById('ramAlertThreshold');
+    const diskTh = document.getElementById('diskAlertThreshold');
+    const btn = document.querySelector('button[onclick="saveResourceAlerts()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('cpu_enabled', cpuEn.checked ? '1' : '0');
+    fd.append('ram_enabled', ramEn.checked ? '1' : '0');
+    fd.append('disk_enabled', diskEn.checked ? '1' : '0');
+    fd.append('cpu_threshold', cpuTh.value);
+    fd.append('ram_threshold', ramTh.value);
+    fd.append('disk_threshold', diskTh.value);
+    api('POST', '/alerts/resources', fd, btn);
+}
+
+// Notification Channels
+function loadNotificationChannels() {
+    fetch('/api/vm/' + VM_UUID + '/notification-channels').then(r => r.json()).then(d => {
+        const el = document.getElementById('notificationChannelsList');
+        const ruleChan = document.getElementById('ruleChannelSelect');
+        if (!d.success || !d.channels || !d.channels.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No notification channels configured.</div>';
+            if (ruleChan) ruleChan.innerHTML = '<option value="">-- No channels --</option>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.channels.map(c =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div class="flex items-center gap-3">' +
+            '<span class="badge badge-info">' + c.type + '</span>' +
+            '<span class="text-sm text-gray-300">' + c.name + '</span>' +
+            '<span class="text-xs text-gray-600">' + c.config + '</span>' +
+            '</div>' +
+            '<button onclick="deleteNotificationChannel(' + c.id + ')" class="text-red-400 hover:text-red-300 text-xs">Delete</button>' +
+            '</div>'
+        ).join('') + '</div>';
+        if (ruleChan) {
+            ruleChan.innerHTML = '<option value="">-- Channel --</option>' +
+                d.channels.map(c => '<option value="' + c.id + '">' + c.name + ' (' + c.type + ')</option>').join('');
+        }
+    });
+}
+
+function addNotificationChannel() {
+    const type = document.getElementById('channelTypeSelect');
+    const name = document.getElementById('channelNameInput');
+    const config = document.getElementById('channelConfigInput');
+    if (!name.value.trim() || !config.value.trim()) { showToast('Fill in all fields', 'error'); return; }
+    const btn = document.querySelector('button[onclick="addNotificationChannel()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('type', type.value);
+    fd.append('name', name.value.trim());
+    fd.append('config', config.value.trim());
+    api('POST', '/notification-channels', fd, btn).then(d => {
+        if (d.success) { name.value = ''; config.value = ''; loadNotificationChannels(); }
+    });
+}
+
+function deleteNotificationChannel(cid) {
+    if (!confirm('Delete this channel?')) return;
+    api('POST', '/notification-channels/' + cid + '/delete').then(d => { if (d.success) loadNotificationChannels(); });
+}
+
+// Notification Rules
+function loadNotificationRules() {
+    fetch('/api/vm/' + VM_UUID + '/notification-rules').then(r => r.json()).then(d => {
+        const el = document.getElementById('notificationRulesList');
+        if (!d.success || !d.rules || !d.rules.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No notification rules configured.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.rules.map(r =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div class="flex items-center gap-3"><span class="badge badge-info">' + r.event_type.replace(/_/g, ' ') + '</span>' +
+            '<span class="text-xs text-gray-400">→</span>' +
+            '<span class="text-sm text-gray-300">' + r.channel_name + '</span></div>' +
+            '<button onclick="deleteNotificationRule(' + r.id + ')" class="text-red-400 hover:text-red-300 text-xs">Delete</button>' +
+            '</div>'
+        ).join('') + '</div>';
+    });
+}
+
+function addNotificationRule() {
+    const event = document.getElementById('ruleEventSelect');
+    const channel = document.getElementById('ruleChannelSelect');
+    if (!channel.value) { showToast('Select a channel', 'error'); return; }
+    const btn = document.querySelector('button[onclick="addNotificationRule()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('event_type', event.value);
+    fd.append('channel_id', channel.value);
+    api('POST', '/notification-rules', fd, btn).then(d => { if (d.success) loadNotificationRules(); });
+}
+
+function deleteNotificationRule(rid) {
+    if (!confirm('Delete this rule?')) return;
+    api('POST', '/notification-rules/' + rid + '/delete').then(d => { if (d.success) loadNotificationRules(); });
+}
+
+// Webhooks
+function loadWebhooks() {
+    fetch('/api/vm/' + VM_UUID + '/webhooks').then(r => r.json()).then(d => {
+        const el = document.getElementById('webhookList');
+        if (!d.success || !d.webhooks || !d.webhooks.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No webhooks configured.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="space-y-2">' + d.webhooks.map(w =>
+            '<div class="flex items-center justify-between p-3 rounded-xl bg-white/5">' +
+            '<div><p class="text-sm text-gray-300 font-mono truncate max-w-md">' + w.url + '</p>' +
+            '<p class="text-xs text-gray-500">Events: ' + w.events + '</p></div>' +
+            '<button onclick="deleteWebhook(' + w.id + ')" class="text-red-400 hover:text-red-300 text-xs">Delete</button>' +
+            '</div>'
+        ).join('') + '</div>';
+    });
+}
+
+function addWebhook() {
+    const url = document.getElementById('webhookUrlInput');
+    const secret = document.getElementById('webhookSecretInput');
+    const events = document.getElementById('webhookEventSelect');
+    if (!url.value.trim()) { showToast('Enter a webhook URL', 'error'); return; }
+    const btn = document.querySelector('button[onclick="addWebhook()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('url', url.value.trim());
+    fd.append('secret', secret.value.trim());
+    fd.append('events', events.value);
+    api('POST', '/webhooks', fd, btn).then(d => {
+        if (d.success) { url.value = ''; secret.value = ''; loadWebhooks(); }
+    });
+}
+
+function deleteWebhook(wid) {
+    if (!confirm('Delete this webhook?')) return;
+    api('POST', '/webhooks/' + wid + '/delete').then(d => { if (d.success) loadWebhooks(); });
+}
+
+// Transfer Ownership
+function transferOwnership() {
+    const input = document.getElementById('transferUserInput');
+    if (!input.value.trim()) { showToast('Enter a username or email', 'error'); return; }
+    if (!confirm('Transfer this VM to ' + input.value.trim() + '? This action cannot be undone.')) return;
+    const btn = document.querySelector('button[onclick="transferOwnership()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('target', input.value.trim());
+    api('POST', '/transfer', fd, btn).then(d => {
+        if (d.success) { input.value = ''; showToast('VM transferred successfully', 'success'); }
+    });
+}
+
+// Migrate VM
+function loadNodes() {
+    fetch('/api/vm/' + VM_UUID + '/migrate-nodes').then(r => r.json()).then(d => {
+        const sel = document.getElementById('migrateNodeSelect');
+        if (d.success && d.nodes) {
+            sel.innerHTML = '<option value="">-- Select Target Node --</option>' +
+                d.nodes.map(n => '<option value="' + n.id + '" ' + (n.id === '{{ vm.node_id }}' ? 'disabled' : '') + '>' + n.name + ' (' + n.status + ')' + '</option>').join('');
+        }
+    });
+}
+
+function migrateVM() {
+    const sel = document.getElementById('migrateNodeSelect');
+    if (!sel.value) { showToast('Select a target node', 'error'); return; }
+    if (!confirm('Migrate VM to ' + sel.options[sel.selectedIndex].text + '? The VM will be temporarily unavailable.')) return;
+    const btn = document.querySelector('button[onclick="migrateVM()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('node_id', sel.value);
+    api('POST', '/migrate', fd, btn).then(d => {
+        if (d.success) setTimeout(() => location.reload(), 5000);
+    });
+}
+
+// Activity Log
+function loadActivityLog() {
+    fetch('/api/vm/' + VM_UUID + '/activity').then(r => r.json()).then(d => {
+        const el = document.getElementById('activityLog');
+        if (!d.success || !d.activities || !d.activities.length) {
+            el.innerHTML = '<div class="text-center py-6 text-gray-600">No activity recorded yet.</div>';
+            return;
+        }
+        const icons = {
+            'vm_started': 'fa-play text-green-400',
+            'vm_stopped': 'fa-stop text-red-400',
+            'vm_created': 'fa-plus text-blue-400',
+            'vm_deleted': 'fa-trash text-red-400',
+            'vm_rebooted': 'fa-rotate text-yellow-400',
+            'vm_suspended': 'fa-pause text-yellow-400',
+            'vm_unsuspended': 'fa-play text-green-400',
+            'backup_created': 'fa-camera text-blue-400',
+            'backup_restored': 'fa-rotate-left text-yellow-400',
+            'backup_deleted': 'fa-trash text-red-400',
+            'snapshot_created': 'fa-camera text-purple-400',
+            'snapshot_reverted': 'fa-rotate-left text-yellow-400',
+            'snapshot_deleted': 'fa-trash text-red-400',
+            'firewall_updated': 'fa-shield text-blue-400',
+            'password_reset': 'fa-key text-yellow-400',
+            'os_reinstall': 'fa-rotate text-red-400',
+            'resources_upgraded': 'fa-arrow-up text-green-400',
+            'ip_added': 'fa-plus-circle text-blue-400',
+            'ip_removed': 'fa-minus-circle text-red-400',
+            'floating_ip_assigned': 'fa-link text-blue-400',
+            'floating_ip_removed': 'fa-unlink text-red-400',
+            'iso_mounted': 'fa-circle-play text-purple-400',
+            'iso_unmounted': 'fa-eject text-purple-400',
+            'tag_added': 'fa-tag text-blue-400',
+            'tag_removed': 'fa-tag text-red-400',
+        };
+        el.innerHTML = '<div class="space-y-1 max-h-80 overflow-y-auto">' + d.activities.map(a => {
+            const icon = icons[a.action] || 'fa-circle text-gray-500';
+            const cls = a.severity === 'error' ? 'text-red-400' : a.severity === 'warning' ? 'text-yellow-400' : 'text-gray-300';
+            return '<div class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-white/5 text-sm">' +
+                '<i class="fas ' + icon.split(' ')[0] + ' ' + (icon.split(' ')[1] || 'text-gray-500') + ' mt-0.5"></i>' +
+                '<div class="flex-1 min-w-0"><p class="' + cls + '">' + a.message + '</p>' +
+                '<p class="text-xs text-gray-600">' + (a.created_at || '') + ' · ' + (a.user || 'system') + '</p></div></div>';
+        }).join('') + '</div>';
+    });
+}
+
+// Download Connection Details
+function downloadConnectionDetails() {
+    const hostname = '{{ request.host.split(":")[0] if request else "" }}';
+    const content = [
+        '================================',
+        '  VM Connection Details',
+        '================================',
+        '',
+        'VM Name: {{ vm.name }}',
+        'UUID: {{ vm.uuid }}',
+        'Status: {{ vm.status }}',
+        'OS: {{ vm.os_type }}/{{ vm.os_version }}',
+        '',
+        '--- SSH ---',
+        'Host: ' + hostname,
+        'Port: {{ vm.ssh_port }}',
+        'User: {{ vm.username }}',
+        'Password: {{ vm.password }}',
+        'Command: ssh {{ vm.username }}@' + hostname + ' -p {{ vm.ssh_port }}',
+        '',
+        '--- VNC ---',
+        'URL: https://' + hostname + '/vnc/{{ vm.uuid }}',
+        'Port: {{ vm.vnc_port or "N/A" }}',
+        '',
+        '--- Resources ---',
+        'vCPU: {{ vm.cpus }} Cores',
+        'RAM: {{ vm.ram }} MB',
+        'Disk: {{ vm.disk_size }}',
+        '',
+        '--- Network ---',
+        'SSH Port: {{ vm.ssh_port }}',
+        'VNC Port: {{ vm.vnc_port or "N/A" }}',
+        '',
+        'Generated: ' + new Date().toISOString(),
+        '================================'
+    ].join('\n');
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ vm.name }}-connection-details.txt';
+    a.click();
+    window.URL.revokeObjectURL(url);
+    showToast('Connection details downloaded', 'success');
+}
+
+// Health Check
+document.getElementById('uptimeMonitoringToggle')?.addEventListener('change', function () {
+    const fd = new FormData();
+    fd.append('enabled', this.checked ? '1' : '0');
+    api('POST', '/health-check/uptime', fd);
+});
+
+function saveHealthCheck() {
+    const port = document.getElementById('healthCheckPort');
+    const btn = document.querySelector('button[onclick="saveHealthCheck()"]');
+    if (btn) { btn.setAttribute('data-orig', btn.innerHTML); }
+    const fd = new FormData();
+    fd.append('port', port.value);
+    api('POST', '/health-check/port', fd, btn);
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', function () {
+    loadFirewallRules();
+    loadIPs();
+    loadPrivateNetworks();
+    loadSSHKeys();
+    loadBackupSchedule();
+    loadBackups();
+    loadSnapshots();
+    loadTemplates();
+    loadISOLibrary();
+    loadDisks();
+    loadStartupScripts();
+    loadNotificationChannels();
+    loadNotificationRules();
+    loadWebhooks();
+    loadActivityLog();
+    {% if current_user.role in ['admin','reseller'] %}
+    loadNodes();
+    {% endif %}
+    updateReinstallVersions();
+});
+</script>
+{% endblock %}

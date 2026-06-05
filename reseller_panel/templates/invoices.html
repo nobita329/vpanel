@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between animate-in">
+    <div><h1 class="text-2xl font-bold text-white">Invoices</h1><p class="text-gray-500 mt-1">Billing and payment records</p></div>
+    {% if current_user.role == 'admin' %}<button onclick="generateInvoices()" class="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-rotate"></i>Generate Monthly</button>{% endif %}
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-white">${{ "%.2f"|format(stats.total_revenue) }}</p><p class="text-gray-500 text-sm mt-1">Total Revenue</p></div>
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-yellow-400">{{ stats.pending }}</p><p class="text-gray-500 text-sm mt-1">Pending</p></div>
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-green-400">{{ stats.paid }}</p><p class="text-gray-500 text-sm mt-1">Paid</p></div>
+    <div class="stat-card rounded-xl p-5 text-center animate-in"><p class="text-3xl font-bold text-red-400">{{ stats.overdue }}</p><p class="text-gray-500 text-sm mt-1">Overdue</p></div>
+</div>
+<div class="card rounded-xl overflow-hidden animate-in">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="table-header">
+                <tr>
+                    <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Invoice</th>
+                    <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                    <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800/30">
+                {% for inv in invoices %}
+                <tr class="table-row">
+                    <td class="px-6 py-4 font-mono text-sm text-white">#{{ inv.invoice_no }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-400">{{ inv.username or '' }}</td>
+                    <td class="px-6 py-4 text-sm font-medium text-white">${{ "%.2f"|format(inv.total) }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{{ inv.type }}</td>
+                    <td class="px-6 py-4"><span class="badge {{ 'badge-success' if inv.status=='paid' else 'badge-warning' if inv.status=='pending' else 'badge-danger' }}">{{ inv.status }}</span></td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{{ inv.created_at[:10] }}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex space-x-1">
+                            {% if inv.status == 'pending' and current_user.role == 'admin' %}
+                            <button onclick="markPaid('{{ inv.invoice_no }}')" class="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition" title="Mark Paid"><i class="fas fa-check"></i></button>
+                            {% endif %}
+                            {% if inv.status == 'pending' and current_user.role == 'client' %}
+                            <button onclick="checkout('{{ inv.invoice_no }}')" class="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition" title="Pay with Card"><i class="fas fa-credit-card"></i></button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not invoices %}<tr><td colspan="7" class="px-6 py-16 text-center text-gray-600">No invoices generated yet</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+function markPaid(n){if(!confirm('Mark invoice '+n+' as paid?'))return;fetch('/api/invoice/'+n+'/pay',{method:'POST'}).then(r=>r.json()).then(d=>{showToast(d.message||'Paid',d.success?'success':'error');if(d.success)setTimeout(()=>location.reload(),1000);});}
+function generateInvoices(){if(!confirm('Generate invoices for all running VMs?'))return;const btn=document.querySelector('button[onclick="generateInvoices()"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Generating...';}fetch('/api/invoices/generate',{method:'POST'}).then(r=>r.json()).then(d=>{showToast(d.message||'Done',d.success?'success':'error');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-rotate"></i>Generate Monthly';}if(d.success)setTimeout(()=>location.reload(),2000);});}
+function checkout(n){const btn=document.querySelector('button[onclick^="checkout"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}fetch('/api/invoice/'+n+'/checkout',{method:'POST'}).then(r=>r.json()).then(d=>{if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-credit-card"></i>';}if(d.success&&d.url)window.location.href=d.url;else showToast(d.error||'Checkout failed','error');});}
+</script>
+{% endblock %}

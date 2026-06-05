@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 animate-in">
+    <h1 class="text-2xl font-bold text-white">Settings</h1>
+    <p class="text-gray-500 mt-1">System configuration and integration settings</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i class="fas fa-gear text-blue-400"></i>General</h2>
+        <form method="POST" class="space-y-5">
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Site Name</label><input type="text" name="site_name" value="{{ settings.site_name or 'vPanel Reseller' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Currency</label>
+                <select name="currency" class="input-field w-full rounded-xl px-4 py-3">
+                    <option value="USD" {{ 'selected' if settings.currency=='USD' else '' }}>USD ($)</option>
+                    <option value="EUR" {{ 'selected' if settings.currency=='EUR' else '' }}>EUR (€)</option>
+                    <option value="INR" {{ 'selected' if settings.currency=='INR' else '' }}>INR (₹)</option>
+                </select>
+            </div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Profit Margin (%)</label><input type="number" name="profit_margin" value="{{ settings.profit_margin or '20' }}" min="0" max="100" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div class="pt-6 border-t border-gray-800/50"><h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-envelope text-blue-400"></i>SMTP (Email Notifications)</h3></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">SMTP Host</label><input type="text" name="smtp_host" value="{{ settings.smtp_host or '' }}" class="input-field w-full rounded-xl px-4 py-3" placeholder="smtp.example.com"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">SMTP Port</label><input type="number" name="smtp_port" value="{{ settings.smtp_port or '587' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">SMTP User</label><input type="text" name="smtp_user" value="{{ settings.smtp_user or '' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-2">SMTP Password</label><input type="password" name="smtp_pass" value="{{ settings.smtp_pass or '' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div class="col-span-2"><label class="block text-sm font-medium text-gray-400 mb-2">From Address</label><input type="email" name="smtp_from" value="{{ settings.smtp_from or 'noreply@vpanel.com' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+            </div>
+            <div class="pt-6 border-t border-gray-800/50"><h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-credit-card text-blue-400"></i>Stripe (Payment Processing)</h3></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2"><label class="block text-sm font-medium text-gray-400 mb-2">Secret Key</label><input type="password" name="stripe_secret_key" value="{{ settings.stripe_secret_key or '' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div class="col-span-2"><label class="block text-sm font-medium text-gray-400 mb-2">Publishable Key</label><input type="text" name="stripe_publishable_key" value="{{ settings.stripe_publishable_key or '' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+                <div class="col-span-2"><label class="block text-sm font-medium text-gray-400 mb-2">Webhook Secret</label><input type="password" name="stripe_webhook_secret" value="{{ settings.stripe_webhook_secret or '' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+            </div>
+            <div class="pt-4"><button type="submit" class="btn-primary px-8 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save Settings</button></div>
+        </form>
+    </div>
+    <div class="space-y-6">
+        <div class="card rounded-xl p-6 animate-in">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-paint-brush text-blue-400"></i>Branding & Theme</h2>
+            <form method="POST" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-400 mb-2">Site Logo URL</label><input type="text" name="site_logo" value="{{ settings.site_logo or '' }}" class="input-field w-full rounded-xl px-4 py-3" placeholder="https://example.com/logo.png"></div>
+                    <div><label class="block text-sm font-medium text-gray-400 mb-2">Default Theme</label>
+                        <select name="default_theme" class="input-field w-full rounded-xl px-4 py-3">
+                            <option value="dark" {{ 'selected' if settings.default_theme=='dark' else '' }}>Dark</option>
+                            <option value="light" {{ 'selected' if settings.default_theme=='light' else '' }}>Light</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2"><label class="block text-sm font-medium text-gray-400 mb-2">Footer Text</label><input type="text" name="footer_text" value="{{ settings.footer_text or 'Powered by vPanel Reseller Platform' }}" class="input-field w-full rounded-xl px-4 py-3"></div>
+                    <div class="col-span-2"><label class="block text-sm font-medium text-gray-400 mb-2">Custom CSS</label><textarea name="custom_css" rows="4" class="input-field w-full rounded-xl px-4 py-3 font-mono text-sm">{{ settings.custom_css or '' }}</textarea></div>
+                    <div><label class="block text-sm font-medium text-gray-400 mb-2">Show Branding</label>
+                        <select name="branding_show" class="input-field w-full rounded-xl px-4 py-3">
+                            <option value="1" {{ 'selected' if settings.branding_show!='0' else '' }}>Show</option>
+                            <option value="0" {{ 'selected' if settings.branding_show=='0' else '' }}>Hide</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Save Branding</button>
+            </form>
+        </div>
+        <div class="card rounded-xl p-6 animate-in">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-circle-info text-blue-400"></i>System Information</h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">Panel Version</span><span class="text-white font-medium">v2.0</span></div>
+                <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">KVM Acceleration</span><span class="text-green-400 font-medium flex items-center gap-1.5"><span class="status-dot running"></span>Available</span></div>
+                <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">VM Storage Path</span><span class="text-gray-300 font-mono text-xs">{{ '/root/vms' }}</span></div>
+            </div>
+        </div>
+        <div class="card rounded-xl p-6 animate-in">
+            <h2 class="text-lg font-bold text-white mb-4">System Status</h2>
+            <div class="space-y-4">
+                <div class="p-4 rounded-xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 border border-blue-500/10">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-envelope text-blue-400 mt-0.5"></i>
+                        <div><p class="text-sm font-medium text-white">Email Configuration</p><p class="text-xs text-gray-500 mt-1">Configure SMTP settings to enable email notifications for invoices, tickets, and VM events.</p></div>
+                    </div>
+                </div>
+                <div class="p-4 rounded-xl bg-gradient-to-r from-purple-500/5 to-pink-500/5 border border-purple-500/10">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-credit-card text-purple-400 mt-0.5"></i>
+                        <div><p class="text-sm font-medium text-white">Payment Gateway</p><p class="text-xs text-gray-500 mt-1">Set your Stripe API keys to enable online credit card payments via the invoices page.</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card rounded-xl p-6 mt-6 animate-in">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-compact-disc text-purple-400"></i>ISO Management</h2>
+    <div class="mb-4">
+        <form id="uploadIsoForm" class="flex gap-3 items-end">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-400 mb-2">Upload Custom ISO</label>
+                <input type="file" name="file" accept=".iso" class="input-field w-full rounded-xl px-4 py-3 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500/10 file:text-blue-400 hover:file:bg-blue-500/20">
+            </div>
+            <button type="submit" class="btn-primary px-6 py-3 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-upload"></i>Upload</button>
+        </form>
+        <p class="text-xs text-gray-600 mt-2">Only .iso files, max 10GB.</p>
+    </div>
+    <div id="isoList" class="text-sm text-gray-500">Loading ISOs...</div>
+</div>
+
+<div class="card rounded-xl p-6 mt-6 animate-in">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-clock-rotate text-blue-400"></i>Login History</h2>
+    <div id="adminLoginHistory" class="text-sm text-gray-500">Loading...</div>
+</div>
+
+<script>
+function loadAdminLoginHistory(){fetch('/api/login-history/all').then(r=>r.json()).then(d=>{const el=document.getElementById('adminLoginHistory');if(!d.success||!d.history.length){el.innerHTML='<div class="text-center py-6 text-gray-600">No login history</div>';return;}
+let html='<div class="table-wrap max-h-96 overflow-y-auto"><table class="w-full"><thead class="table-header"><tr><th class="text-left p-2 text-xs text-gray-500 uppercase">User</th><th class="text-left p-2 text-xs text-gray-500 uppercase">IP</th><th class="text-left p-2 text-xs text-gray-500 uppercase">Status</th><th class="text-left p-2 text-xs text-gray-500 uppercase">Date</th></tr></thead><tbody>';
+d.history.slice(0,100).forEach(h=>{html+=`<tr class="table-row border-b border-gray-800/30"><td class="p-2 text-sm">${h.username||'?'}</td><td class="p-2 text-sm text-gray-400">${h.ip_address||'?'}</td><td class="p-2"><span class="badge ${h.status==='success'?'badge-success':'badge-danger'}">${h.status}</span></td><td class="p-2 text-sm text-gray-500">${h.created_at||''}</td></tr>`;});
+html+='</tbody></table></div>';el.innerHTML=html;});}
+
+function loadIsos(){fetch('/api/isos').then(r=>r.json()).then(d=>{const el=document.getElementById('isoList');if(!d.success||!d.isos||!d.isos.length){el.innerHTML='<div class="text-center py-6 text-gray-600">No custom ISOs uploaded yet.</div>';return;}
+let html='<div class="space-y-2">';d.isos.forEach(iso=>{const size=(iso.size/1024/1024).toFixed(1);html+=`<div class="flex items-center justify-between p-3 rounded-xl bg-white/5"><div><p class="font-medium text-sm text-white">${iso.name}</p><p class="text-xs text-gray-500">${size} MB · uploaded by ${iso.uploaded_by_name||'?'} · ${iso.created_at}</p></div><button onclick="deleteIso(${iso.id})" class="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20">Delete</button></div>`;});html+='</div>';el.innerHTML=html;});}
+function deleteIso(id){if(!confirm('Delete this ISO? This cannot be undone.'))return;const btns=document.querySelectorAll('button[onclick*="deleteIso"]');btns.forEach(b=>{b.disabled=true;b.innerHTML='<i class="fas fa-spinner fa-spin"></i>';});fetch('/api/isos/'+id+'/delete',{method:'POST'}).then(r=>r.json()).then(d=>{showToast(d.message||'Deleted',d.success?'success':'error');loadIsos();btns.forEach(b=>{b.disabled=false;b.innerHTML='Delete';});});}
+document.getElementById('uploadIsoForm')?.addEventListener('submit',function(e){e.preventDefault();const f=new FormData(this);const btn=this.querySelector('button[type="submit"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Uploading...';}fetch('/api/isos/upload',{method:'POST',body:f}).then(r=>r.json()).then(d=>{showToast(d.message||d.error,d.success?'success':'error');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-upload"></i>Upload';}if(d.success){this.reset();loadIsos();}});});
+document.addEventListener('DOMContentLoaded',function(){loadAdminLoginHistory();loadIsos();});
+</script>
+{% endblock %}

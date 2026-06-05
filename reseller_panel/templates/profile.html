@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 animate-in">
+    <h1 class="text-2xl font-bold text-white">Profile</h1>
+    <p class="text-gray-500 mt-1">Manage your account settings and API access</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-lock text-blue-400"></i>Change Password</h2>
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="action" value="password">
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Current Password</label><input type="password" name="current_password" required class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">New Password</label><input type="password" name="new_password" required minlength="6" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <button type="submit" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Update Password</button>
+        </form>
+    </div>
+    <div class="space-y-6">
+        <div class="card rounded-xl p-6 animate-in">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-key text-blue-400"></i>API Key</h2>
+            <p class="text-sm text-gray-500 mb-4">Use this key to authenticate API requests to the panel.</p>
+            <div class="bg-black/40 rounded-xl p-4 font-mono text-sm break-all border border-gray-800/50">{% if current_user.api_key %}<span class="text-blue-400">{{ current_user.api_key }}</span>{% else %}<span class="text-gray-600">No API key generated</span>{% endif %}</div>
+            <form method="POST" class="mt-4">
+                <input type="hidden" name="action" value="api_key">
+                <button type="submit" class="bg-yellow-500/10 text-yellow-400 px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-yellow-500/20 transition inline-flex items-center gap-2" onclick="return confirm('Regenerate API key? The old key will stop working immediately.')"><i class="fas fa-rotate"></i>Regenerate Key</button>
+            </form>
+        </div>
+        <div class="card rounded-xl p-6 animate-in">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-shield-halved text-blue-400"></i>Two-Factor Authentication</h2>
+            {% if user_2fa.enabled %}
+            <div class="space-y-4">
+                <div class="p-4 rounded-xl bg-green-500/5 border border-green-500/20 text-green-400 text-sm flex items-center gap-3"><i class="fas fa-check-circle"></i>2FA is currently enabled on your account.</div>
+                <form method="POST">
+                    <input type="hidden" name="action" value="disable_2fa">
+                    <button type="submit" class="bg-red-500/10 text-red-400 px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition inline-flex items-center gap-2" onclick="return confirm('Disable 2FA? Your account will be less secure.')"><i class="fas fa-shield-slash"></i>Disable 2FA</button>
+                </form>
+            </div>
+            {% elif user_2fa.qr_svg %}
+            <div class="space-y-4">
+                <p class="text-sm text-gray-500">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+                <div class="flex justify-center bg-white rounded-xl p-4">{{ user_2fa.qr_svg|safe }}</div>
+                <p class="text-xs text-gray-600 break-all bg-black/40 p-3 rounded-xl font-mono select-all">{{ user_2fa.totp_uri }}</p>
+                <form method="POST" class="space-y-3">
+                    <input type="hidden" name="action" value="verify_2fa">
+                    <input type="hidden" name="secret" value="{{ user_2fa.secret }}">
+                    <div><label class="block text-sm font-medium text-gray-400 mb-2">Verify Code</label><input type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required class="input-field w-full rounded-xl px-4 py-3 text-center text-xl tracking-widest" placeholder="000000"></div>
+                    <button type="submit" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-shield-check"></i>Verify & Enable</button>
+                </form>
+                <form method="POST">
+                    <input type="hidden" name="action" value="enable_2fa">
+                    <button type="submit" class="text-gray-500 hover:text-gray-300 text-xs">Regenerate Secret</button>
+                </form>
+            </div>
+            {% else %}
+            <div class="space-y-4">
+                <p class="text-sm text-gray-500">Add an extra layer of security to your account by enabling two-factor authentication.</p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="enable_2fa">
+                    <button type="submit" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-shield-halved"></i>Enable 2FA</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card rounded-xl p-6 animate-in">
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-user text-blue-400"></i>Account Information</h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">Username</span><span class="text-white font-medium">{{ current_user.username }}</span></div>
+                <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">Role</span><span class="badge badge-info">{{ current_user.role }}</span></div>
+                <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">Account Balance</span><span class="text-green-400 font-medium">${{ "%.2f"|format(current_user.balance) }}</span></div>
+            </div>
+        </div>
+        <div class="card rounded-xl p-6 animate-in">
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-clock-rotate text-blue-400"></i>Login History</h3>
+            <div id="loginHistory" class="text-sm text-gray-500">Loading...</div>
+        </div>
+    </div>
+</div>
+        <div class="card rounded-xl p-6 animate-in" id="tokenManagement">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-key text-blue-400"></i>API Token Management</h2>
+            <div id="tokenList" class="mb-4 space-y-2"></div>
+            <form id="createTokenForm" class="flex gap-3 items-end" onsubmit="return createToken(event)">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">New Token Name</label>
+                    <input type="text" id="tokenName" required class="input-field w-full rounded-xl px-4 py-2.5 text-sm" placeholder="e.g. CI/CD Integration">
+                </div>
+                <button type="submit" class="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-plus"></i>Create</button>
+            </form>
+            <div id="newTokenDisplay" class="hidden mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+                <p class="text-yellow-400 text-sm font-semibold mb-2"><i class="fas fa-triangle-exclamation mr-1"></i>Copy this token now. It will not be shown again.</p>
+                <div class="bg-black/40 rounded-xl p-3 font-mono text-sm break-all border border-gray-800/50 text-green-400 select-all" id="newTokenValue"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+function loadLoginHistory(){fetch('/api/login-history').then(r=>r.json()).then(d=>{const el=document.getElementById('loginHistory');if(!d.success||!d.history.length){el.innerHTML='<div class="text-center py-6 text-gray-600">No login history</div>';return;}
+let html='<div class="space-y-2 max-h-64 overflow-y-auto">';d.history.slice(0,10).forEach(h=>{const statusBadge=h.status==='success'?'badge-success':'badge-danger';html+=`<div class="flex items-center justify-between p-2 rounded-lg bg-white/5"><div class="flex items-center gap-2"><span class="badge ${statusBadge}">${h.status}</span><span class="text-xs text-gray-400">${h.ip_address||'?'}</span></div><span class="text-xs text-gray-600">${h.created_at||''}</span></div>`;});html+='</div>';el.innerHTML=html;});}
+function loadTokens(){fetch('/api/tokens').then(r=>r.json()).then(d=>{const el=document.getElementById('tokenList');if(!d.success||!d.tokens.length){el.innerHTML='<div class="text-center py-6 text-gray-600"><i class="fas fa-key text-gray-700 text-2xl mb-2"></i><p>No API tokens yet. Create one above.</p></div>';return;}
+let html='';d.tokens.forEach(t=>{html+=`<div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-gray-800/30"><div><p class="text-white text-sm font-medium">${t.name}</p><p class="text-xs text-gray-500">Created ${t.created_at||'N/A'} · Last used ${t.last_used_at||'never'}</p></div><form method="POST" action="/api/tokens/${t.id}/delete" onsubmit="return confirm('Delete token \\"${t.name}\\"?')" class="m-0"><input type="hidden" name="_method" value="POST"><button type="submit" class="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition text-xs"><i class="fas fa-trash-can"></i></button></form></div>`;});el.innerHTML=html;});}
+function createToken(e){e.preventDefault();const name=document.getElementById('tokenName').value;const btn=e.target.querySelector('button[type="submit"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Creating...';}fetch('/api/tokens/create',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'name='+encodeURIComponent(name)}).then(r=>r.json()).then(d=>{if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-plus"></i>Create';}if(d.success){document.getElementById('newTokenDisplay').classList.remove('hidden');document.getElementById('newTokenValue').textContent=d.token;document.getElementById('tokenName').value='';loadTokens();}else{showToast(d.error||'Failed to create token','error');}});return false;}
+document.addEventListener('DOMContentLoaded',function(){loadLoginHistory();loadTokens();});
+</script>
+{% endblock %}

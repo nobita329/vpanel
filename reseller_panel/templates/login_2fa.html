@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4">
+    <div class="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-purple-600/5 pointer-events-none"></div>
+    <div class="w-full max-w-md relative">
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl mb-5 shadow-2xl shadow-blue-500/20">V</div>
+            <h1 class="text-3xl font-bold text-white">Two-Factor Auth</h1>
+            <p class="text-gray-500 mt-2">Enter the code from your authenticator app</p>
+        </div>
+        <div class="card rounded-2xl p-8 glow">
+            {% if error %}<div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6 text-red-400 text-sm flex items-center gap-3"><i class="fas fa-circle-exclamation"></i>{{ error }}</div>{% endif %}
+            <form method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Authentication Code</label>
+                    <div class="relative">
+                        <i class="fas fa-shield-halved absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"></i>
+                        <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus class="input-field w-full rounded-xl px-11 py-3.5 text-center text-2xl tracking-[0.5em] focus:outline-none" placeholder="000000">
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary w-full rounded-xl py-3.5 font-semibold text-white text-sm flex items-center justify-center gap-2"><i class="fas fa-shield-check"></i>Verify</button>
+            </form>
+            <div class="text-center mt-6">
+                <a href="/logout" class="text-gray-600 hover:text-red-400 text-sm">Cancel and sign out</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

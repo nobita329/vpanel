@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 animate-in">
+    <h1 class="text-2xl font-bold text-white">Create Virtual Machine</h1>
+    <p class="text-gray-500 mt-1">Provision a new virtual machine instance</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2"><i class="fas fa-sliders text-blue-400"></i>Configuration</h2>
+        <form id="createVMForm" class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">VM Name <span class="text-red-400">*</span></label>
+                    <input type="text" name="name" required pattern="[a-zA-Z0-9_-]+" placeholder="my-instance" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Owner</label>
+                    <select name="user_id" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">{% for u in users %}<option value="{{ u.id }}">{{ u.username }} ({{ u.role }})</option>{% endfor %}</select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Plan (prefill specs)</label>
+                    <select name="plan_id" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none" onchange="applyPlan()">
+                        <option value="">Custom Configuration</option>{% for p in plans %}<option value="{{ p.id }}" data-cpus="{{ p.cpus }}" data-ram="{{ p.ram }}" data-disk="{{ p.disk }}">{{ p.name }} (${{ "%.2f"|format(p.price_monthly) }}/mo)</option>{% endfor %}</select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Operating System <span class="text-red-400">*</span></label>
+                    <select name="os_type" id="osType" onchange="updateVersions()" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">{% for os in os_images %}<option value="{{ os }}">{{ os|title }}</option>{% endfor %}</select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">OS Version</label>
+                    <select name="os_version" id="osVersion" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">CPU Model</label>
+                    <select name="cpu_model" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">{% for m in cpu_models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">vCPU Cores</label>
+                    <input type="number" name="cpus" id="cpus" value="1" min="1" max="64" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">RAM (MB)</label>
+                    <input type="number" name="ram" id="ram" value="1024" min="256" max="65536" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Disk Size</label>
+                    <input type="text" name="disk_size" id="disk_size" value="20G" placeholder="e.g. 20G" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">SSH Port</label>
+                    <input type="number" name="ssh_port" value="2222" min="1024" max="65535" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Username</label>
+                    <input type="text" name="username" value="root" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Password</label>
+                    <input type="text" name="password" value="vpanel@123" minlength="6" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Bandwidth Limit (GB)</label>
+                    <input type="number" name="bandwidth" value="1000" min="0" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Hostname</label>
+                    <input type="text" name="hostname" placeholder="auto-generated" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none">
+                </div>
+                {% if nodes %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Node (Location)</label>
+                    <select name="node_id" class="input-field w-full rounded-xl px-4 py-3 focus:outline-none"><option value="">Auto-select</option>{% for n in nodes %}<option value="{{ n.id }}">{{ n.name }}</option>{% endfor %}</select>
+                </div>
+                {% endif %}
+            </div>
+            <div class="pt-4 flex items-center space-x-4">
+                <button type="submit" class="btn-primary px-8 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><i class="fas fa-cloud-arrow-up"></i>Create VM</button>
+                <a href="/vms" class="text-gray-500 hover:text-gray-300 text-sm">Cancel</a>
+            </div>
+        </form>
+    </div>
+    <div class="card rounded-xl p-6 h-fit animate-in">
+        <h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-calculator text-blue-400"></i>Cost Summary</h3>
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">Setup Fee</span><span class="text-green-400 font-medium">Free</span></div>
+            <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">Hourly Rate</span><span class="text-gray-200 font-medium" id="hourlyRate">$0.005</span></div>
+            <div class="flex justify-between p-3 bg-white/5 rounded-xl"><span class="text-gray-500">Monthly Estimate</span><span class="text-gray-200 font-medium" id="monthlyEst">$3.65</span></div>
+            <div class="border-t border-gray-800/50 pt-3 flex justify-between font-bold"><span class="text-gray-300">Total / Month</span><span class="text-blue-400 text-lg" id="totalMonthly">$3.65</span></div>
+        </div>
+        <div class="mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 border border-blue-500/10">
+            <p class="text-sm text-blue-400 flex items-center gap-2"><i class="fas fa-circle-info"></i>Hourly billing with monthly cap — you only pay for what you use.</p>
+        </div>
+        <div class="mt-4 space-y-2">
+            <p class="text-xs text-gray-600">Available OS Templates:</p>
+            <div class="flex flex-wrap gap-1.5">
+                <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 text-gray-400">Ubuntu 24.04</span>
+                <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 text-gray-400">Ubuntu 22.04</span>
+                <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 text-gray-400">Debian 12</span>
+                <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 text-gray-400">CentOS 9</span>
+                <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 text-gray-400">Fedora 40</span>
+                <span class="text-[10px] px-2 py-1 rounded-md bg-white/5 text-gray-400">Alpine 3.20</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const OS_IMAGES = {{ os_images_json|safe }};
+const RATES = {1:0.005,2:0.01,4:0.02,6:0.04,8:0.08};
+function updateVersions() {
+    const t=document.getElementById('osType').value,s=document.getElementById('osVersion');
+    const v=OS_IMAGES[t]||{}; s.innerHTML='';
+    for(const[ver,info]of Object.entries(v)){const o=document.createElement('option');o.value=ver;o.textContent=info.name;s.appendChild(o);}
+}
+function applyPlan() {
+    const sel=document.querySelector('select[name="plan_id"]'),opt=sel.options[sel.selectedIndex];
+    if(opt.value&&opt.dataset.cpus){document.getElementById('cpus').value=opt.dataset.cpus;document.getElementById('ram').value=opt.dataset.ram;document.getElementById('disk_size').value=opt.dataset.disk+'G';updateCost();}
+}
+function updateCost() {
+    const c=parseInt(document.getElementById('cpus').value)||1,r=RATES[c]||0.005,m=r*730;
+    document.getElementById('hourlyRate').textContent='$'+r.toFixed(3);document.getElementById('monthlyEst').textContent='$'+m.toFixed(2);document.getElementById('totalMonthly').textContent='$'+m.toFixed(2);
+}
+document.getElementById('cpus')?.addEventListener('input',updateCost);
+document.getElementById('createVMForm')?.addEventListener('submit',function(e){
+    e.preventDefault();const btn=this.querySelector('button[type="submit"]');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Creating...';
+    fetch('/api/vm/create',{method:'POST',body:new FormData(this)}).then(r=>r.json()).then(d=>{if(d.success){showToast('VM created successfully!','success');setTimeout(()=>window.location.href='/vms/'+d.uuid,1500);}else{showToast(d.error||'Failed','error');btn.disabled=false;btn.innerHTML='<i class="fas fa-cloud-arrow-up"></i>Create VM';}}).catch(e=>{showToast('Error','error');btn.disabled=false;btn.innerHTML='<i class="fas fa-cloud-arrow-up"></i>Create VM';});
+});
+updateVersions();updateCost();
+</script>
+{% endblock %}

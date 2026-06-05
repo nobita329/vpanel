@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 animate-in">
+    <h1 class="text-2xl font-bold text-white">Promo Codes</h1>
+    <p class="text-gray-500 mt-1">Create and manage discount promo codes</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-plus-circle text-blue-400"></i>Create Promo Code</h2>
+        <form id="promoForm" class="space-y-4" onsubmit="return createPromo(event)">
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Code</label><input type="text" name="code" required class="input-field w-full rounded-xl px-4 py-3 uppercase" placeholder="SUMMER20"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Type</label>
+                <select name="type" class="input-field w-full rounded-xl px-4 py-3">
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed ($)</option>
+                </select>
+            </div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Value</label><input type="number" name="value" step="0.01" required class="input-field w-full rounded-xl px-4 py-3" placeholder="20"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Min Amount ($)</label><input type="number" name="min_amount" step="0.01" value="0" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Max Uses (0 = unlimited)</label><input type="number" name="max_uses" value="0" min="0" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <div><label class="block text-sm font-medium text-gray-400 mb-2">Expires At</label><input type="datetime-local" name="expires_at" class="input-field w-full rounded-xl px-4 py-3"></div>
+            <button type="submit" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-floppy-disk"></i>Create</button>
+        </form>
+    </div>
+    <div class="lg:col-span-2 card rounded-xl p-6 animate-in">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-percent text-blue-400"></i>Existing Codes</h2>
+        <div id="promoList" class="text-sm text-gray-500">Loading...</div>
+    </div>
+</div>
+<script>
+function loadPromos(){fetch('/api/promos').then(r=>r.json()).then(d=>{const el=document.getElementById('promoList');if(!d.success||!d.promos.length){el.innerHTML='<div class="text-center py-12 text-gray-600">No promo codes yet</div>';return;}
+let html='<div class="table-wrap"><table class="w-full"><thead class="table-header"><tr><th class="text-left p-3 text-xs text-gray-500 uppercase">Code</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Type</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Value</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Used</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Max</th><th class="text-left p-3 text-xs text-gray-500 uppercase">Expires</th></tr></thead><tbody>';
+d.promos.forEach(p=>{const expired=p.expires_at&&new Date(p.expires_at)<new Date();html+=`<tr class="table-row border-b border-gray-800/30"><td class="p-3 font-medium text-white">${p.code}</td><td class="p-3"><span class="badge badge-info">${p.type}</span></td><td class="p-3">${p.type==='fixed'?'$':''}${p.value}${p.type==='percentage'?'%':''}</td><td class="p-3">${p.used_count}</td><td class="p-3">${p.max_uses||'∞'}</td><td class="p-3">${p.expires_at||'Never'}${expired?' <span class="badge badge-danger">Expired</span>':''}</td></tr>`;});html+='</tbody></table></div>';el.innerHTML=html;});}
+function createPromo(e){e.preventDefault();const f=new FormData(e.target);const btn=e.target.querySelector('button[type="submit"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Creating...';}fetch('/api/promos/create',{method:'POST',body:f}).then(r=>r.json()).then(d=>{showToast(d.message||d.error,d.success?'success':'error');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-floppy-disk"></i>Create';}if(d.success){e.target.reset();loadPromos();}});return false;}
+document.addEventListener('DOMContentLoaded',loadPromos);
+</script>
+{% endblock %}

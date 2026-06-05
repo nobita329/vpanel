@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between animate-in">
+    <div>
+        <h1 class="text-2xl font-bold text-white">{{ ticket.subject }}</h1>
+        <p class="text-gray-500 mt-1">
+            <span class="text-gray-400">by {{ ticket.username }}</span>
+            · <span class="text-gray-500">{{ ticket.department }}</span>
+            · <span class="badge {{ 'badge-danger' if ticket.priority=='high' else 'badge-warning' if ticket.priority=='medium' else 'badge-info' }}">{{ ticket.priority }}</span>
+        </p>
+    </div>
+    <div class="flex space-x-3">
+        <span class="badge {{ 'badge-success' if ticket.status=='closed' else 'badge-info' if ticket.status=='in_progress' else 'badge-warning' }}">{{ ticket.status }}</span>
+        {% if ticket.status != 'closed' %}<button onclick="closeTicket()" class="btn-success px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2"><i class="fas fa-check"></i>Close</button>{% endif %}
+    </div>
+</div>
+
+<div class="card rounded-xl p-6 mb-6 animate-in">
+    <div class="prose prose-invert max-w-none">
+        <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">{{ ticket.message }}</p>
+    </div>
+    <div class="flex items-center gap-3 mt-4 pt-4 border-t border-gray-800/50">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">{{ ticket.username[0]|upper }}</div>
+        <div><p class="text-sm font-medium text-white">{{ ticket.username }}</p><p class="text-xs text-gray-500">{{ ticket.created_at }}</p></div>
+    </div>
+</div>
+
+{% if replies %}
+<h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-comments text-blue-400"></i>Replies ({{ replies|length }})</h3>
+{% for r in replies %}
+<div class="card rounded-xl p-6 mb-4 animate-in">
+    <div class="flex items-center gap-3 mb-4">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">{{ r.username[0]|upper }}</div>
+        <div><p class="font-medium text-sm text-white">{{ r.username }}</p><p class="text-xs text-gray-500">{{ r.created_at }}</p></div>
+    </div>
+    <p class="text-gray-300 whitespace-pre-wrap leading-relaxed">{{ r.message }}</p>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if ticket.status != 'closed' %}
+<div class="card rounded-xl p-6 animate-in">
+    <h3 class="font-bold text-white mb-4 flex items-center gap-2"><i class="fas fa-reply text-blue-400"></i>Add Reply</h3>
+    <form id="replyForm" class="space-y-4" onsubmit="return addReply(event)">
+        <textarea name="message" rows="4" required class="input-field w-full rounded-xl px-4 py-3" placeholder="Type your reply..."></textarea>
+        <button type="submit" class="btn-primary px-8 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><i class="fas fa-paper-plane"></i>Send Reply</button>
+    </form>
+</div>
+{% endif %}
+
+<script>
+function addReply(e){e.preventDefault();const f=new FormData(e.target);const btn=e.target.querySelector('button[type="submit"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Sending...';}fetch('/api/ticket/{{ ticket.uuid }}/reply',{method:'POST',body:f}).then(r=>r.json()).then(d=>{showToast(d.message||'Reply sent',d.success?'success':'error');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reply';}if(d.success)setTimeout(()=>location.reload(),1000);});return false;}
+function closeTicket(){if(!confirm('Close this ticket?'))return;const btn=document.querySelector('button[onclick="closeTicket()"]');if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}fetch('/api/ticket/{{ ticket.uuid }}/close',{method:'POST'}).then(r=>r.json()).then(d=>{showToast(d.message||'Closed',d.success?'success':'error');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Close';}if(d.success)setTimeout(()=>location.reload(),1000);});}
+</script>
+{% endblock %}

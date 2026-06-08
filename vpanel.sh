@@ -43,6 +43,7 @@ menu() {
 install_deps() {
     echo -e "${YELLOW}[*] Installing system dependencies...${NC}"
     apt-get update -y
+    apt install -y qemu-system cloud-image-utils wget lsof 
     apt-get install -y python3 python3-pip python3-venv nginx qemu-kvm libvirt-daemon-system \
                        virt-manager novnc websockify iptables wget curl sqlite3
 }

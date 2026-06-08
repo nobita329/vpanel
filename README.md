@@ -78,7 +78,9 @@ Manage virtual machines, users, resellers, billing, and more from a web dashboar
 ## Quick Install
 
 ```bash
-sudo bash vpanel.sh
+git clone https://github.com/nobita329/vpanel.git
+cd vpanel
+sudo bash vpanel.sh 
 ```
 
 Select option **3** for full auto install + setup.
